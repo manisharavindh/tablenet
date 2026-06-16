@@ -10,6 +10,7 @@ CREATE TYPE user_role AS ENUM ('waiter', 'kitchen', 'admin');
 CREATE TABLE public.restaurants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
+    hide_customer_total BOOLEAN DEFAULT false NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -39,6 +40,10 @@ CREATE TABLE public.menu_items (
     is_available BOOLEAN DEFAULT true NOT NULL
 );
 
+-- Enable Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurants;
+
 -- 5. Orders Table
 CREATE TABLE public.orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -66,8 +71,12 @@ RETURNS UUID AS $$
 $$ LANGUAGE sql SECURITY DEFINER;
 
 -- Restaurants Policies
-CREATE POLICY "Staff can view their restaurant" ON public.restaurants
-    FOR SELECT TO authenticated
+CREATE POLICY "Anyone can view restaurants" ON public.restaurants
+    FOR SELECT TO public
+    USING (true);
+
+CREATE POLICY "Staff can update their restaurant" ON public.restaurants
+    FOR UPDATE TO authenticated
     USING (id = get_user_restaurant_id());
 
 -- User Roles Policies

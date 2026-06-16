@@ -80,7 +80,7 @@ export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQua
       {/* Fixed ORDER Button */}
       {cart.length > 0 && (
         <div className="fixed bottom-[4.5rem] left-0 right-0 px-4 max-w-md mx-auto z-40">
-          <button 
+          <button
             onClick={onPlaceOrder}
             className="w-full bg-[#F24E5B] hover:bg-[#e04552] active:bg-[#cc3e49] text-white font-bold text-lg py-4 rounded-3xl shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center"
           >

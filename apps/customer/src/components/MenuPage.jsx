@@ -29,7 +29,7 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
       .eq('restaurant_id', restaurantId)
       .order('category')
       .order('name');
-    
+
     if (data) setMenu(data);
     setLoading(false);
   };
@@ -46,8 +46,8 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
       <div className="pt-6 px-4 max-w-md mx-auto space-y-8 animate-pulse">
         <div className="h-8 bg-slate-200 rounded w-1/3 mb-2"></div>
         <div className="grid grid-cols-2 gap-4">
-           <div className="h-48 bg-slate-200 rounded-2xl"></div>
-           <div className="h-48 bg-slate-200 rounded-2xl"></div>
+          <div className="h-48 bg-slate-200 rounded-2xl"></div>
+          <div className="h-48 bg-slate-200 rounded-2xl"></div>
         </div>
       </div>
     );
@@ -61,12 +61,12 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
           <div className="grid grid-cols-2 gap-x-3 gap-y-4">
             {items.map((item) => {
               const cartItem = cart?.find(i => i.id === item.id);
-              
+
               return (
                 <div key={item.id} className={`bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col ${!item.is_available ? 'opacity-60 grayscale' : ''}`}>
                   <div className="relative aspect-square">
                     <img src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80'} alt={item.name} className="w-full h-full object-cover" />
-                    
+
                     {/* Out of stock overlay */}
                     {!item.is_available && (
                       <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
@@ -84,13 +84,13 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
 
                   <div className="p-3 flex flex-col flex-grow bg-[#FDFDFD]">
                     <h3 className="font-bold text-[13px] leading-tight mb-3 uppercase text-slate-900 line-clamp-2">{item.name}</h3>
-                    
+
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex flex-col">
                         <span className="font-bold text-[15px] leading-none">₹{Math.round(item.price)}</span>
                         <span className="text-[9px] font-bold text-slate-400 mt-0.5 tracking-wider">+5% GST</span>
                       </div>
-                      
+
                       <div>
                         {!item.is_available ? (
                           <button disabled className="bg-slate-200 text-slate-400 font-bold text-[11px] px-3 py-1.5 rounded uppercase cursor-not-allowed">

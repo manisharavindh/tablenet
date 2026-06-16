@@ -13,7 +13,7 @@ function CustomerView() {
   const [restaurantId, setRestaurantId] = useState(null);
   const [sessionId, setSessionId] = useState('');
   const [loading, setLoading] = useState(true);
-  
+
   const [cart, setCart] = useState([]);
   const [activeTab, setActiveTab] = useState('menu');
   const [activeOrders, setActiveOrders] = useState([]);
@@ -34,7 +34,7 @@ function CustomerView() {
           .select('id, table_number, restaurant_id')
           .eq('qr_token', qrToken)
           .single();
-          
+
         if (data) {
           setTableNumber(data.table_number);
           setTableId(data.id);
@@ -48,7 +48,7 @@ function CustomerView() {
         setTimeout(() => setLoading(false), 800);
       }
     };
-    
+
     resolveTable();
   }, [qrToken]);
 
@@ -61,13 +61,13 @@ function CustomerView() {
         .select('*')
         .eq('table_id', tableId)
         .order('created_at', { ascending: false });
-      
+
       if (data && data.length > 0) {
         setActiveOrders(data);
         setHasOrdered(true);
       }
     };
-    
+
     fetchActiveOrders();
 
     const channel = supabase.channel(`customer-orders-table-${tableId}`)
@@ -76,19 +76,19 @@ function CustomerView() {
         { event: '*', schema: 'public', table: 'orders' },
         (payload) => {
           if (payload.eventType === 'DELETE') {
-             setActiveOrders(prev => prev.filter(o => o.id !== payload.old.id));
+            setActiveOrders(prev => prev.filter(o => o.id !== payload.old.id));
           } else if (payload.new && payload.new.id) {
-             if (payload.new.table_id === tableId) {
-               setActiveOrders(prev => {
-                 const exists = prev.find(o => o.id === payload.new.id);
-                 if (exists) {
-                   return prev.map(o => o.id === payload.new.id ? payload.new : o);
-                 } else {
-                   return [payload.new, ...prev];
-                 }
-               });
-               setHasOrdered(true);
-             }
+            if (payload.new.table_id === tableId) {
+              setActiveOrders(prev => {
+                const exists = prev.find(o => o.id === payload.new.id);
+                if (exists) {
+                  return prev.map(o => o.id === payload.new.id ? payload.new : o);
+                } else {
+                  return [payload.new, ...prev];
+                }
+              });
+              setHasOrdered(true);
+            }
           }
         }
       )
@@ -103,7 +103,7 @@ function CustomerView() {
     if (hasOrdered && activeOrders.length === 0) {
       // The table was cleared by the waiter!
       localStorage.removeItem('tablenet_session_id');
-      
+
       // Reset the table for a new customer
       const newSid = crypto.randomUUID();
       localStorage.setItem('tablenet_session_id', newSid);
@@ -136,7 +136,7 @@ function CustomerView() {
   const handlePlaceOrder = async () => {
     const orderItems = cart;
     setCart([]);
-    
+
     if (tableId && restaurantId) {
       const { data, error } = await supabase.from('orders').insert({
         session_id: sessionId,
@@ -145,15 +145,15 @@ function CustomerView() {
         table_id: tableId,
         restaurant_id: restaurantId
       }).select();
-      
+
       if (error) {
-         console.error('Error placing order:', error);
+        console.error('Error placing order:', error);
       } else if (data && data.length > 0) {
-         setActiveOrders(prev => {
-           if (prev.find(o => o.id === data[0].id)) return prev;
-           return [data[0], ...prev];
-         });
-         setActiveTab('tracking');
+        setActiveOrders(prev => {
+          if (prev.find(o => o.id === data[0].id)) return prev;
+          return [data[0], ...prev];
+        });
+        setActiveTab('tracking');
       }
     } else {
       alert("Error: Table not found or unlinked.");
@@ -182,24 +182,24 @@ function CustomerView() {
 
       <main className="max-w-md mx-auto">
         {activeTab === 'home' && (
-           <div className="p-8 text-center mt-12">
-             <h2 className="text-2xl font-bold mb-2">Welcome to TableNet</h2>
-             <p className="text-secondary mb-6">Enjoy your meal at Table {tableNumber}</p>
-             <button onClick={() => setActiveTab('menu')} className="bg-[#F24E5B] text-white px-6 py-3 rounded-xl font-bold shadow-soft">View Menu</button>
-           </div>
+          <div className="p-8 text-center mt-12">
+            <h2 className="text-2xl font-bold mb-2">Welcome to TableNet</h2>
+            <p className="text-secondary mb-6">Enjoy your meal at Table {tableNumber}</p>
+            <button onClick={() => setActiveTab('menu')} className="bg-[#F24E5B] text-white px-6 py-3 rounded-xl font-bold shadow-soft">View Menu</button>
+          </div>
         )}
         {activeTab === 'menu' && (
-          <MenuPage 
-            onAddToCart={handleAddToCart} 
-            restaurantId={restaurantId} 
+          <MenuPage
+            onAddToCart={handleAddToCart}
+            restaurantId={restaurantId}
             cart={cart}
             updateQuantity={updateQuantity}
           />
         )}
         {activeTab === 'cart' && (
-          <CartPage 
-            isOpen={true} 
-            onClose={() => setActiveTab('menu')} 
+          <CartPage
+            isOpen={true}
+            onClose={() => setActiveTab('menu')}
             cart={cart}
             tableNumber={tableNumber}
             updateQuantity={updateQuantity}
@@ -207,16 +207,17 @@ function CustomerView() {
           />
         )}
         {activeTab === 'tracking' && activeOrders.length > 0 && (
-          <OrderTrackingPage 
+          <OrderTrackingPage
             orders={activeOrders}
             onClose={() => setActiveTab('menu')}
+            restaurantId={restaurantId}
           />
         )}
         {activeTab === 'tracking' && activeOrders.length === 0 && (
           <div className="p-8 text-center mt-12">
-             <h2 className="text-xl font-bold text-slate-900 mb-2">No Active Orders</h2>
-             <p className="text-slate-500 mb-6">You don't have any orders currently being prepared.</p>
-             <button onClick={() => setActiveTab('menu')} className="bg-[#1AA147] text-white px-6 py-3 rounded-xl font-bold shadow-soft">Browse Menu</button>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">No Active Orders</h2>
+            <p className="text-slate-500 mb-6">You don't have any orders currently being prepared.</p>
+            <button onClick={() => setActiveTab('menu')} className="bg-[#1AA147] text-white px-6 py-3 rounded-xl font-bold shadow-soft">Browse Menu</button>
           </div>
         )}
       </main>
@@ -227,7 +228,7 @@ function CustomerView() {
           <div className="flex items-center gap-3">
             <div className="flex -space-x-3">
               {cart.slice(0, 3).map(item => (
-                 <img key={item.id} src={item.image_url} className="w-10 h-10 rounded-full border-2 border-[#F24E5B] object-cover bg-white" alt="" />
+                <img key={item.id} src={item.image_url} className="w-10 h-10 rounded-full border-2 border-[#F24E5B] object-cover bg-white" alt="" />
               ))}
             </div>
             <span className="font-bold text-lg">{cartItemsCount} item{cartItemsCount !== 1 && 's'} added</span>
@@ -241,17 +242,17 @@ function CustomerView() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#FDFCF7]/95 backdrop-blur-md pb-safe border-t border-slate-100">
         <div className="max-w-md mx-auto px-4 py-2 flex justify-between items-center relative">
-          
+
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'home' ? 'text-[#F24E5B]' : 'text-slate-400'}`}>
             <Home size={22} className={activeTab === 'home' ? 'fill-current' : ''} />
             <span className="text-[10px] font-bold mt-1">Home</span>
           </button>
-          
+
           <button onClick={() => setActiveTab('menu')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'menu' ? 'text-[#F24E5B]' : 'text-slate-400'}`}>
             <MenuIcon size={22} />
             <span className="text-[10px] font-bold mt-1">Menu</span>
           </button>
-          
+
           <button onClick={() => setActiveTab('tracking')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'tracking' ? 'text-[#F24E5B]' : 'text-slate-400'} relative`}>
             <div className="relative">
               <FileText size={22} className={activeTab === 'tracking' ? 'fill-current' : ''} />
@@ -261,7 +262,7 @@ function CustomerView() {
             </div>
             <span className="text-[10px] font-bold mt-1">Orders</span>
           </button>
-          
+
           <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'cart' ? 'text-[#F24E5B]' : 'text-slate-400'} relative`}>
             <div className="relative">
               <ShoppingBag size={22} className={activeTab === 'cart' ? 'fill-current' : ''} />

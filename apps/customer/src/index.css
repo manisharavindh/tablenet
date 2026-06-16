@@ -12,11 +12,11 @@
   .card {
     @apply bg-surface rounded-2xl shadow-soft p-6 transition-all duration-300;
   }
-  
+
   .btn {
     @apply bg-surface shadow-soft rounded-xl font-semibold px-6 py-3 transition-all duration-300 active:shadow-inset active:scale-[0.98] flex items-center justify-center gap-2;
   }
-  
+
   .btn-primary {
     @apply bg-primary text-white shadow-lg shadow-slate-300 active:shadow-inset active:bg-slate-800;
   }
@@ -24,10 +24,11 @@
   .btn-accent {
     @apply bg-accent text-white shadow-lg shadow-blue-200 active:shadow-inset active:bg-accentPress;
   }
-  
+
   .neumorphic-toggle {
     @apply bg-surface shadow-inset rounded-full p-1 cursor-pointer transition-all duration-300;
   }
+
   .neumorphic-toggle-knob {
     @apply bg-surface shadow-soft rounded-full transition-all duration-300;
   }

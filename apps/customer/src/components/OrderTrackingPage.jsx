@@ -1,29 +1,72 @@
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { supabase } from '@tablenet/supabase';
 
 const Timer = ({ createdAt }) => {
   const [elapsed, setElapsed] = useState('');
-  
+
   useEffect(() => {
     const update = () => {
-       const diff = Math.floor((new Date() - new Date(createdAt)) / 1000);
-       if (diff < 0) {
-         setElapsed('0:00');
-         return;
-       }
-       const mins = Math.floor(diff / 60);
-       const secs = diff % 60;
-       setElapsed(`${mins}:${secs.toString().padStart(2, '0')}`);
+      const diff = Math.floor((new Date() - new Date(createdAt)) / 1000);
+      if (diff < 0) {
+        setElapsed('0:00');
+        return;
+      }
+      const mins = Math.floor(diff / 60);
+      const secs = diff % 60;
+      setElapsed(`${mins}:${secs.toString().padStart(2, '0')}`);
     };
     update();
     const int = setInterval(update, 1000);
     return () => clearInterval(int);
   }, [createdAt]);
-  
+
   return <>{elapsed}</>;
 };
 
-export default function OrderTrackingPage({ orders, onClose }) {
+export default function OrderTrackingPage({ orders, onClose, restaurantId }) {
+  const [hideTotal, setHideTotal] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    const fetchSettings = async () => {
+      console.log("Fetching settings for restaurantId:", restaurantId);
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('hide_customer_total')
+        .eq('id', restaurantId)
+        .single();
+
+      console.log("Settings fetched:", data, error);
+      if (data) {
+        setHideTotal(data.hide_customer_total);
+      }
+      setSettingsLoading(false);
+    };
+
+    fetchSettings();
+
+    // Listen for real-time updates to the restaurant settings
+    const channel = supabase.channel(`public:restaurants:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'restaurants', filter: `id=eq.${restaurantId}` },
+        (payload) => {
+          if (payload.new && payload.new.hide_customer_total !== undefined) {
+            setHideTotal(payload.new.hide_customer_total);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId]);
+
+  if (settingsLoading) return null;
   if (!orders || orders.length === 0) return null;
 
   // Flatten items
@@ -39,7 +82,7 @@ export default function OrderTrackingPage({ orders, onClose }) {
   });
 
   const getStatusDisplay = (status) => {
-    switch(status) {
+    switch (status) {
       case 'placed':
         return { text: 'ORDERED', bg: 'bg-amber-100', textCol: 'text-amber-700' };
       case 'preparing':
@@ -69,11 +112,11 @@ export default function OrderTrackingPage({ orders, onClose }) {
       <div className="p-4 space-y-4">
         {flatItems.map((item, idx) => {
           const statusStyle = getStatusDisplay(item.orderStatus);
-          
+
           return (
             <div key={idx} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-50 relative">
               <div className="flex justify-between items-start">
-                
+
                 {/* Left Side: Name, Veg, Status, Timer */}
                 <div className="flex-1">
                   <div className="flex items-start gap-2 mb-3">
@@ -119,11 +162,13 @@ export default function OrderTrackingPage({ orders, onClose }) {
                   </div>
 
                   {/* Price */}
-                  <div className="mt-6 text-right">
-                    <div className="font-bold text-slate-900 text-lg leading-none">
-                      ₹{Math.round(item.price * item.quantity)} <span className="text-[11px] font-bold text-slate-500 tracking-wider inline-block ml-0.5">+5% GST</span>
+                  {!hideTotal && (
+                    <div className="mt-6 text-right">
+                      <div className="font-bold text-slate-900 text-lg leading-none">
+                        ₹{Math.round(item.price * item.quantity)} <span className="text-[11px] font-bold text-slate-500 tracking-wider inline-block ml-0.5">+5% GST</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
               </div>
@@ -132,10 +177,12 @@ export default function OrderTrackingPage({ orders, onClose }) {
         })}
 
         {/* Total Summary */}
-        <div className="mt-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center">
-           <span className="font-bold text-slate-500 uppercase tracking-wider text-sm">Total Amount</span>
-           <span className="font-black text-2xl text-slate-900">₹{Math.round(total)}</span>
-        </div>
+        {!hideTotal && (
+          <div className="mt-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center">
+            <span className="font-bold text-slate-500 uppercase tracking-wider text-sm">Total Amount</span>
+            <span className="font-black text-2xl text-slate-900">₹{Math.round(total)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
