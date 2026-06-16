@@ -71,7 +71,7 @@ export default function QRCodeManager() {
             <div className="bg-slate-50 shadow-inset p-4 rounded-2xl mb-6 flex-shrink-0">
               <QRCodeSVG 
                 id={`qr-svg-${table.table_number}`}
-                value={`https://tablenet.com/t/${table.qr_token}`} 
+                value={`https://tablenet-customer.netlify.app/t/${table.qr_token}`} 
                 size={140}
                 bgColor={"transparent"}
                 fgColor={"#0f172a"}
