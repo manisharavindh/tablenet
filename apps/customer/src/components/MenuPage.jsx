@@ -1,57 +1,131 @@
-import { Plus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@tablenet/supabase';
 
-const mockMenu = [
-  {
-    category: 'Starters',
-    items: [
-      { id: 1, name: 'Truffle Fries', price: 8.99, description: 'Crispy fries with truffle oil and parmesan', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&q=80' },
-      { id: 2, name: 'Calamari', price: 12.99, description: 'Lightly breaded and fried, served with marinara', image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=500&q=80' }
-    ]
-  },
-  {
-    category: 'Mains',
-    items: [
-      { id: 3, name: 'Wagyu Burger', price: 18.99, description: 'Half pound wagyu beef, aged cheddar, brioche bun', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80' },
-      { id: 4, name: 'Margherita Pizza', price: 15.99, description: 'Fresh mozzarella, san marzano tomatoes, basil', image: 'https://images.unsplash.com/photo-1604068549290-dea0e4a30536?w=500&q=80' }
-    ]
-  }
-];
+export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuantity }) {
+  const [menu, setMenu] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-export default function MenuPage({ onAddToCart }) {
-  return (
-    <div className="pb-24 pt-6 px-4 max-w-md mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Our Menu</h1>
-        <p className="text-secondary text-sm">Discover our delicious offerings</p>
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    fetchMenu();
+
+    const channel = supabase.channel(`customer-menu-${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items', filter: `restaurant_id=eq.${restaurantId}` },
+        () => fetchMenu()
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [restaurantId]);
+
+  const fetchMenu = async () => {
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('category')
+      .order('name');
+    
+    if (data) setMenu(data);
+    setLoading(false);
+  };
+
+  const groupedMenu = menu.reduce((acc, item) => {
+    const cat = item.category || 'Uncategorized';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+
+  if (loading) {
+    return (
+      <div className="pt-6 px-4 max-w-md mx-auto space-y-8 animate-pulse">
+        <div className="h-8 bg-slate-200 rounded w-1/3 mb-2"></div>
+        <div className="grid grid-cols-2 gap-4">
+           <div className="h-48 bg-slate-200 rounded-2xl"></div>
+           <div className="h-48 bg-slate-200 rounded-2xl"></div>
+        </div>
       </div>
-      
-      {mockMenu.map((category) => (
-        <div key={category.category}>
-          <h2 className="text-xl font-semibold mb-4">{category.category}</h2>
-          <div className="space-y-4">
-            {category.items.map((item) => (
-              <div key={item.id} className="card flex gap-4 p-4">
-                <img src={item.image} alt={item.name} className="w-24 h-24 object-cover rounded-xl shadow-soft-sm" />
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg leading-tight mb-1">{item.name}</h3>
-                    <p className="text-secondary text-xs line-clamp-2">{item.description}</p>
+    );
+  }
+
+  return (
+    <div className="pt-4 px-4 pb-4">
+      {Object.entries(groupedMenu).map(([category, items]) => (
+        <div key={category} className="mb-8">
+          <h2 className="text-lg font-bold mb-4 uppercase tracking-wide text-slate-800">{category}</h2>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+            {items.map((item) => {
+              const cartItem = cart?.find(i => i.id === item.id);
+              
+              return (
+                <div key={item.id} className={`bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col ${!item.is_available ? 'opacity-60 grayscale' : ''}`}>
+                  <div className="relative aspect-square">
+                    <img src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80'} alt={item.name} className="w-full h-full object-cover" />
+                    
+                    {/* Out of stock overlay */}
+                    {!item.is_available && (
+                      <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                        <span className="bg-danger text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
+                      </div>
+                    )}
+
+                    {/* Veg/Non-Veg Indicator */}
+                    <div className="absolute bottom-2 left-2 bg-white/90 p-0.5 rounded shadow-sm">
+                      <div className={`w-3.5 h-3.5 border flex items-center justify-center ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${item.is_veg !== false ? 'bg-green-600' : 'bg-[#8B4513]'}`}></div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="font-bold text-accent">${item.price.toFixed(2)}</span>
-                    <button 
-                      onClick={() => onAddToCart(item)}
-                      className="bg-surface shadow-soft rounded-full p-2 text-accent active:shadow-inset active:scale-95 transition-all"
-                    >
-                      <Plus size={18} />
-                    </button>
+
+                  <div className="p-3 flex flex-col flex-grow bg-[#FDFDFD]">
+                    <h3 className="font-bold text-[13px] leading-tight mb-3 uppercase text-slate-900 line-clamp-2">{item.name}</h3>
+                    
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[15px] leading-none">₹{Math.round(item.price)}</span>
+                        <span className="text-[9px] font-bold text-slate-400 mt-0.5 tracking-wider">+5% GST</span>
+                      </div>
+                      
+                      <div>
+                        {!item.is_available ? (
+                          <button disabled className="bg-slate-200 text-slate-400 font-bold text-[11px] px-3 py-1.5 rounded uppercase cursor-not-allowed">
+                            N/A
+                          </button>
+                        ) : cartItem ? (
+                          <div className="flex items-center bg-[#F24E5B] rounded overflow-hidden">
+                            <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 text-white hover:bg-black/10 active:bg-black/20 transition-colors">
+                              <Minus size={14} strokeWidth={3} />
+                            </button>
+                            <span className="text-white font-bold text-[13px] w-4 text-center">{cartItem.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, 1)} className="p-1.5 text-white hover:bg-black/10 active:bg-black/20 transition-colors">
+                              <Plus size={14} strokeWidth={3} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => onAddToCart(item)} className="bg-[#F24E5B] text-white font-bold text-[11px] px-4 py-1.5 rounded uppercase active:scale-95 transition-transform">
+                            ADD
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
+
+      {menu.length === 0 && (
+        <div className="text-center text-secondary py-12">
+          Menu is currently empty.
+        </div>
+      )}
     </div>
   );
 }

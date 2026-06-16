@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-dom';
-import { ChefHat, ListTree } from 'lucide-react';
+import { ChefHat, ListTree, QrCode } from 'lucide-react';
 import LiveTicketBoard from './components/LiveTicketBoard';
 import MenuManager from './components/MenuManager';
+import QRCodeManager from './components/QRCodeManager';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './components/Login';
+
+function PrivateRoute({ children }) {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" replace />;
+}
 
 function KitchenView() {
   const { kitchenId } = useParams();
-  const [activeTab, setActiveTab] = useState('tickets');
+  const [activeTab, setActiveTab] = useState('tickets'); // 'tickets', 'menu', 'qr'
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
@@ -21,26 +29,35 @@ function KitchenView() {
           </div>
         </div>
         
-        <div className="flex bg-slate-100 shadow-inset p-1.5 rounded-2xl">
+        <div className="flex bg-slate-100 shadow-inset p-1.5 rounded-2xl overflow-x-auto snap-x">
           <button 
             onClick={() => setActiveTab('tickets')}
-            className={`px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'tickets' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap snap-start ${activeTab === 'tickets' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
           >
             <ChefHat size={18} />
-            Live Tickets
+            Tickets
           </button>
           <button 
             onClick={() => setActiveTab('menu')}
-            className={`px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'menu' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap snap-start ${activeTab === 'menu' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
           >
             <ListTree size={18} />
-            Menu Manager
+            Menu
+          </button>
+          <button 
+            onClick={() => setActiveTab('qr')}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap snap-start ${activeTab === 'qr' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
+          >
+            <QrCode size={18} />
+            QR Codes
           </button>
         </div>
       </header>
 
       <main className="flex-1 overflow-auto">
-        {activeTab === 'tickets' ? <LiveTicketBoard /> : <MenuManager />}
+        {activeTab === 'tickets' && <LiveTicketBoard />}
+        {activeTab === 'menu' && <MenuManager />}
+        {activeTab === 'qr' && <QRCodeManager />}
       </main>
     </div>
   );
@@ -48,11 +65,14 @@ function KitchenView() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/k/:kitchenId" element={<KitchenView />} />
-        <Route path="*" element={<Navigate to="/k/1" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/k/:kitchenId" element={<PrivateRoute><KitchenView /></PrivateRoute>} />
+          <Route path="*" element={<Navigate to="/k/1" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

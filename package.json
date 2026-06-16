@@ -2,10 +2,14 @@
   "name": "tablenet",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "npx concurrently \"npm run dev -w apps/customer\" \"npm run dev -w apps/waiter\" \"npm run dev -w apps/kitchen\"",
     "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

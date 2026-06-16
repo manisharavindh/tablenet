@@ -10,10 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^1.18.0",
+    "lucide-react": "^0.479.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^7.17.0"
+    "react-router-dom": "^7.17.0",
+    "@tablenet/supabase": "*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
