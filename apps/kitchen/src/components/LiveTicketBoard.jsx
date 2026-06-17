@@ -78,6 +78,13 @@ export default function LiveTicketBoard() {
                       </li>
                     ))}
                   </ul>
+
+                  {ticket.chef_instructions && (
+                    <div className="mb-4 bg-red-50 border border-red-200 text-red-800 p-2.5 rounded-lg text-xs font-bold leading-tight font-sans">
+                      <div className="uppercase tracking-widest text-[9px] mb-1 text-red-500">Chef Instructions</div>
+                      {ticket.chef_instructions}
+                    </div>
+                  )}
                   
                   {col !== 'ready' && (
                     <button 

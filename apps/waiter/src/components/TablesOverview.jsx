@@ -16,17 +16,23 @@ export default function TablesOverview({ onSelectTable }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchTablesAndOrders)
       .subscribe();
 
+    const channel3 = supabase.channel('waiter-assistance')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assistance_requests' }, fetchTablesAndOrders)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
+      supabase.removeChannel(channel3);
     };
   }, []);
 
   const fetchTablesAndOrders = async () => {
     // RLS handles filtering by the user's restaurant_id
-    const [{ data: tablesData }, { data: ordersData }] = await Promise.all([
+    const [{ data: tablesData }, { data: ordersData }, { data: assistanceData }] = await Promise.all([
       supabase.from('tables').select('*').order('table_number', { ascending: true }),
-      supabase.from('orders').select('*').in('status', ['placed', 'preparing', 'ready', 'served'])
+      supabase.from('orders').select('*').in('status', ['placed', 'preparing', 'ready', 'served']),
+      supabase.from('assistance_requests').select('*').eq('status', 'pending')
     ]);
 
     if (tablesData && ordersData) {
@@ -35,6 +41,9 @@ export default function TablesOverview({ onSelectTable }) {
         const tableOrders = ordersData.filter(o => o.table_id === table.id);
         const activeOrders = tableOrders.filter(o => o.status !== 'served');
         const servedOrders = tableOrders.filter(o => o.status === 'served');
+        
+        const tableRequests = assistanceData.filter(r => r.table_id === table.id);
+        const needsAssistance = tableRequests.length > 0;
 
         let status = 'open';
         let timeSeated = null;
@@ -57,7 +66,9 @@ export default function TablesOverview({ onSelectTable }) {
           number: table.table_number,
           capacity: 4, // placeholder
           status,
-          timeSeated
+          timeSeated,
+          needsAssistance,
+          assistanceRequests: tableRequests
         };
       });
       setTables(computedTables);
@@ -104,7 +115,15 @@ export default function TablesOverview({ onSelectTable }) {
             className={`${getStatusColor(table.status)} rounded-3xl p-5 text-left active:scale-[0.98] transition-transform flex flex-col justify-between min-h-[9rem] border border-white/50`}
           >
             <div className="flex justify-between items-start">
-              <span className="text-2xl font-bold">T{table.number}</span>
+              <span className="text-2xl font-bold flex items-center gap-2">
+                T{table.number}
+                {table.needsAssistance && (
+                  <span className="flex h-3 w-3 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                )}
+              </span>
               <div className="flex items-center gap-1 text-xs font-semibold bg-white/50 px-2 py-1 rounded-full">
                 <Users size={12} />
                 <span>{table.capacity}</span>

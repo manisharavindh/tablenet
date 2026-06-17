@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom';
 
 export default function TableDetail({ table, onBack, waiterId }) {
   const [orders, setOrders] = useState([]);
+  const [assistanceRequests, setAssistanceRequests] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
+    fetchAssistanceRequests();
 
-    const channel = supabase.channel(`waiter-orders-${table.id}`)
+    const channel1 = supabase.channel(`waiter-orders-${table.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `table_id=eq.${table.id}` },
@@ -20,8 +22,19 @@ export default function TableDetail({ table, onBack, waiterId }) {
       )
       .subscribe();
 
+    const channel2 = supabase.channel(`waiter-assistance-${table.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'assistance_requests', filter: `table_id=eq.${table.id}` },
+        () => {
+          fetchAssistanceRequests();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, [table.id]);
 
@@ -35,8 +48,23 @@ export default function TableDetail({ table, onBack, waiterId }) {
     if (data) setOrders(data);
   };
 
+  const fetchAssistanceRequests = async () => {
+    const { data } = await supabase
+      .from('assistance_requests')
+      .select('*')
+      .eq('table_id', table.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+    
+    if (data) setAssistanceRequests(data);
+  };
+
   const handleServe = async (id) => {
     await supabase.from('orders').update({ status: 'served' }).eq('id', id);
+  };
+
+  const handleResolveRequest = async (id) => {
+    await supabase.from('assistance_requests').update({ status: 'resolved' }).eq('id', id);
   };
 
   const handleClearTable = async () => {
@@ -80,6 +108,32 @@ export default function TableDetail({ table, onBack, waiterId }) {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+        {assistanceRequests.length > 0 && (
+          <div className="space-y-3 mb-6">
+            <h2 className="font-semibold text-lg px-2 text-red-600 flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+              </span>
+              Assistance Needed
+            </h2>
+            {assistanceRequests.map(req => (
+              <div key={req.id} className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-red-900">{req.request_type}</h3>
+                  <p className="text-xs text-red-700 font-medium">Requested just now</p>
+                </div>
+                <button 
+                  onClick={() => handleResolveRequest(req.id)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-soft active:scale-95 transition-transform"
+                >
+                  Resolve
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <h2 className="font-semibold text-lg px-2">Active Orders</h2>
         
         {orders.length === 0 && (

@@ -11,7 +11,7 @@ export default function MenuManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState({ name: '', category: '', price: '', image_url: '', is_veg: true });
+  const [formData, setFormData] = useState({ name: '', category: '', price: '', image_url: '', is_veg: true, is_popular: false });
 
   useEffect(() => {
     fetchRestaurantAndMenu();
@@ -45,6 +45,10 @@ export default function MenuManager() {
 
   const toggleAvailability = async (id, currentStatus) => {
     await supabase.from('menu_items').update({ is_available: !currentStatus }).eq('id', id);
+  };
+
+  const togglePopularity = async (id, currentStatus) => {
+    await supabase.from('menu_items').update({ is_popular: !currentStatus }).eq('id', id);
   };
 
   const handleDeleteItem = async (id) => {
@@ -88,7 +92,8 @@ export default function MenuManager() {
             price: parseFloat(item.price) || 0,
             category: item.category || 'Uncategorized',
             image_url: item.image_url || '',
-            is_available: item.is_available !== undefined ? item.is_available : true
+            is_available: item.is_available !== undefined ? item.is_available : true,
+            is_popular: item.is_popular !== undefined ? item.is_popular : false
           }));
 
           const { error } = await supabase.from('menu_items').insert(itemsToInsert);
@@ -111,7 +116,7 @@ export default function MenuManager() {
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ name: '', category: '', price: '', image_url: '', is_veg: true });
+    setFormData({ name: '', category: '', price: '', image_url: '', is_veg: true, is_popular: false });
     setIsModalOpen(true);
   };
 
@@ -122,7 +127,8 @@ export default function MenuManager() {
       category: item.category || '',
       price: item.price,
       image_url: item.image_url || '',
-      is_veg: item.is_veg !== undefined ? item.is_veg : true
+      is_veg: item.is_veg !== undefined ? item.is_veg : true,
+      is_popular: item.is_popular !== undefined ? item.is_popular : false
     });
     setIsModalOpen(true);
   };
@@ -141,7 +147,8 @@ export default function MenuManager() {
         category: formData.category || 'Uncategorized',
         price: parseFloat(formData.price),
         image_url: formData.image_url,
-        is_veg: formData.is_veg
+        is_veg: formData.is_veg,
+        is_popular: formData.is_popular
       }).eq('id', editingId).select();
       error = updateError;
       data = updateData;
@@ -153,7 +160,8 @@ export default function MenuManager() {
         price: parseFloat(formData.price),
         image_url: formData.image_url,
         is_veg: formData.is_veg,
-        is_available: true
+        is_available: true,
+        is_popular: formData.is_popular
       }).select();
       error = insertError;
       data = insertData;
@@ -251,6 +259,13 @@ export default function MenuManager() {
                     >
                       <div className={`neumorphic-toggle-knob w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${item.is_available ? 'translate-x-8 bg-success' : 'translate-x-0 bg-danger'}`} />
                     </button>
+                    <button 
+                      onClick={() => togglePopularity(item.id, item.is_popular)} 
+                      className={`p-2 transition-colors rounded-full ${item.is_popular ? 'text-amber-500 bg-amber-50 shadow-inset' : 'text-slate-300 hover:text-amber-500 bg-surface shadow-soft'}`}
+                      title={item.is_popular ? "Remove from Popular" : "Mark as Popular"}
+                    >
+                      ★
+                    </button>
                     <button onClick={() => openEditModal(item)} className="p-2 text-secondary hover:text-primary transition-colors bg-surface shadow-soft rounded-full active:shadow-inset">
                       <Edit2 size={16} />
                     </button>
@@ -299,18 +314,34 @@ export default function MenuManager() {
                 <label className="block text-sm font-semibold mb-2">Image URL</label>
                 <input required type="url" placeholder="https://..." className="w-full p-3 rounded-xl bg-surface shadow-inset outline-none" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} disabled={isSaving} />
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  id="isVegCheckbox"
-                  checked={formData.is_veg}
-                  onChange={e => setFormData({ ...formData, is_veg: e.target.checked })}
-                  className="w-5 h-5 text-success rounded focus:ring-success/50"
-                  disabled={isSaving}
-                />
-                <label htmlFor="isVegCheckbox" className="text-sm font-semibold text-secondary">
-                  Is this item Vegetarian?
-                </label>
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isVegCheckbox"
+                    checked={formData.is_veg}
+                    onChange={e => setFormData({ ...formData, is_veg: e.target.checked })}
+                    className="w-5 h-5 text-success rounded focus:ring-success/50"
+                    disabled={isSaving}
+                  />
+                  <label htmlFor="isVegCheckbox" className="text-sm font-semibold text-secondary">
+                    Vegetarian
+                  </label>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPopularCheckbox"
+                    checked={formData.is_popular}
+                    onChange={e => setFormData({ ...formData, is_popular: e.target.checked })}
+                    className="w-5 h-5 text-amber-500 rounded focus:ring-amber-500/50"
+                    disabled={isSaving}
+                  />
+                  <label htmlFor="isPopularCheckbox" className="text-sm font-semibold text-secondary flex items-center gap-1">
+                    <span className="text-amber-500">★</span> Popular Item
+                  </label>
+                </div>
               </div>
               <button type="submit" className="w-full btn btn-primary mt-4 flex items-center justify-center gap-2" disabled={isSaving}>
                 {isSaving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : 'Save Item'}

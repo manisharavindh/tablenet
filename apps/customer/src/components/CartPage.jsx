@@ -1,91 +1,162 @@
-import { ChevronLeft, Bell, Minus, Plus } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
-export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQuantity, onPlaceOrder }) {
+export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQuantity, onPlaceOrder, hideTotal, instructions, setInstructions }) {
+  const [swipeProgress, setSwipeProgress] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const swipeContainerRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSwipeProgress(0);
+      setTimeout(() => {
+        if (swipeContainerRef.current) {
+          setContainerWidth(swipeContainerRef.current.offsetWidth);
+        }
+      }, 50);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
+  const handlePointerDown = (e) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    e.target.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging.current || !swipeContainerRef.current) return;
+
+    const knobWidth = 56;
+    const maxSwipe = containerWidth - knobWidth - 16;
+
+    let currentX = e.clientX - startX.current;
+    if (currentX < 0) currentX = 0;
+    if (currentX > maxSwipe) currentX = maxSwipe;
+
+    const progress = (currentX / maxSwipe) * 100;
+    setSwipeProgress(progress);
+  };
+
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    e.target.releasePointerCapture(e.pointerId);
+    if (swipeProgress > 85) {
+      setSwipeProgress(100);
+      setTimeout(() => onPlaceOrder(instructions), 200);
+    } else {
+      setSwipeProgress(0);
+    }
+  };
+
+  const maxTranslate = Math.max(0, containerWidth - 72);
+  const translateX = (swipeProgress / 100) * maxTranslate;
+
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const gst = subtotal * 0.05;
+  const total = subtotal + gst;
+
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDFCF7] pb-24 font-sans animate-in slide-in-from-right-4 duration-300">
-      {/* Header */}
-      <header className="px-4 py-6 flex items-center justify-between">
-        <button onClick={onClose} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-          <ChevronLeft size={20} className="text-slate-800" />
-        </button>
-        <h1 className="text-xl font-bold text-slate-900">Customer</h1>
-        <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-          <Bell size={18} className="text-slate-800" />
-        </button>
-      </header>
-
-      <div className="px-4 space-y-6">
-        {/* Table Pill */}
-        <div className="bg-white rounded-2xl py-4 flex items-center justify-center gap-2 shadow-sm border border-slate-100">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
-            <path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"></path>
-            <path d="M4 8h16"></path>
-            <path d="M2 14h20"></path>
-            <path d="M5 14v5a1 1 0 0 0 1 1h0a1 1 0 0 0 1-1v-5"></path>
-            <path d="M17 14v5a1 1 0 0 0 1 1h0a1 1 0 0 0 1-1v-5"></path>
-            <path d="M12 14v3"></path>
-          </svg>
-          <span className="font-bold text-slate-900">Table {tableNumber || 'Unknown'}</span>
-        </div>
-
-        {/* Current Order Container */}
-        <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-50">
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-xl font-bold text-slate-900 whitespace-nowrap">Current Order</h2>
-            <div className="h-px bg-slate-200 w-full"></div>
+    <div className="pt-6 px-4 pb-32 font-sans animate-in slide-in-from-right-4 duration-300">
+      {cart.length === 0 ? (
+        <div className="bg-theme-surface rounded-2xl p-10 flex flex-col items-center justify-center text-center shadow-sm border border-slate-100">
+          <div className="w-16 h-16 rounded-2xl border-2 border-slate-200 flex items-center justify-center mb-6">
+            <ShoppingBag size={28} className="text-slate-300" strokeWidth={2} />
           </div>
+          <h2 className="text-theme-text-sec font-bold mb-6">Your cart is empty.</h2>
+          <button onClick={onClose} className="bg-theme-bg text-theme-primary px-8 py-3 rounded-full font-bold transition-colors border border-theme-primary">
+            Browse Menu
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Cart Items */}
+          {cart.map(item => (
+            <div key={item.id} className="bg-theme-surface rounded-2xl p-5 shadow-sm border border-slate-100 flex justify-between items-center gap-4">
+              <div className="flex-1">
+                <h3 className="font-bold text-[15px] leading-tight text-theme-text-main uppercase tracking-wide">{item.name}</h3>
+                <div className="font-bold text-[13px] text-theme-primary mt-1 tracking-wide">₹{Math.round(item.price)} each</div>
+              </div>
 
-          {cart.length === 0 ? (
-            <p className="text-center text-slate-500 py-8">Your cart is empty.</p>
-          ) : (
-            <div className="space-y-6">
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center gap-4">
-                  <div className="flex-1">
-                    {/* Item Header */}
-                    <div className="flex items-start gap-2">
-                      <div className={`mt-0.5 w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${item.is_veg !== false ? 'bg-green-600' : 'bg-[#8B4513]'}`}></div>
-                      </div>
-                      <h3 className="font-bold text-[14px] leading-tight text-slate-900 uppercase">{item.name}</h3>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between w-[90px] border border-slate-200 rounded-xl py-1.5 px-1 bg-theme-bg">
+                <button onClick={() => updateQuantity(item.id, -1)} className="text-slate-700 px-2 font-bold hover:text-theme-primary transition-colors"><Minus size={14} strokeWidth={3} /></button>
+                <span className="font-bold text-[15px] text-theme-text-main">{item.quantity}</span>
+                <button onClick={() => updateQuantity(item.id, 1)} className="text-slate-700 px-2 font-bold hover:text-theme-primary transition-colors"><Plus size={14} strokeWidth={3} /></button>
+              </div>
+            </div>
+          ))}
 
-                  {/* Stepper & Price */}
-                  <div className="flex flex-col items-center gap-2 shrink-0">
-                    <div className="flex items-center justify-between w-20 border border-slate-200 rounded-full py-1.5 px-1 bg-white">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="text-green-600 px-2 font-bold hover:scale-110 active:scale-95 transition-transform"><Minus size={12} strokeWidth={3} /></button>
-                      <span className="font-bold text-sm text-slate-900">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="text-green-600 px-2 font-bold hover:scale-110 active:scale-95 transition-transform"><Plus size={12} strokeWidth={3} /></button>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-slate-900 text-[15px] leading-none">₹{Math.round(item.price * item.quantity)}</div>
-                      <div className="text-[9px] font-bold text-slate-500 mt-0.5 tracking-wider">+5% GST</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button onClick={onClose} className="w-full bg-[#1AA147] hover:bg-[#168e3d] active:bg-[#147a35] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors mt-6">
-                <Plus size={18} strokeWidth={2.5} />
-                Add More Items
-              </button>
+          {/* Bill Summary */}
+          {!hideTotal && (
+            <div className="bg-theme-surface rounded-2xl p-6 shadow-sm border border-slate-100 mt-2">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-theme-text-sec font-medium text-[15px]">Subtotal</span>
+                <span className="font-bold text-theme-text-main text-[15px]">₹{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-theme-text-sec font-medium text-[15px]">GST (5%)</span>
+                <span className="font-bold text-theme-text-main text-[15px]">₹{gst.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-slate-100 mb-4"></div>
+              <div className="flex justify-between items-center">
+                <span className="font-extrabold text-theme-text-main text-[18px]">Total</span>
+                <span className="font-extrabold text-theme-accent text-[24px]">₹{total.toFixed(2)}</span>
+              </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Fixed ORDER Button */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-[4.5rem] left-0 right-0 px-4 max-w-md mx-auto z-40">
-          <button
-            onClick={onPlaceOrder}
-            className="w-full bg-[#F24E5B] hover:bg-[#e04552] active:bg-[#cc3e49] text-white font-bold text-lg py-4 rounded-3xl shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center"
-          >
-            ORDER
-          </button>
+          {/* Chef Instructions */}
+          <div className="mt-6 mb-8">
+            <h4 className="text-[11px] font-bold text-theme-text-sec uppercase tracking-widest mb-3">Chef Instructions</h4>
+            <textarea
+              className="w-full bg-theme-surface border border-slate-200 rounded-2xl p-4 text-[15px] outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary resize-none shadow-sm placeholder:text-theme-text-sec"
+              placeholder="e.g., Please keep the spice moderate..."
+              rows="3"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+            ></textarea>
+          </div>
+
+          {/* Fixed Swipe to Order Button */}
+          <div className="fixed bottom-[4.5rem] left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-40">
+            <div
+              ref={swipeContainerRef}
+              className="bg-theme-primary rounded-2xl p-[6px] relative h-[68px] flex items-center shadow-lg shadow-theme-primary/30 overflow-hidden select-none border border-theme-primary mb-4"
+            >
+              {/* Track Text */}
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pl-[15px] transition-opacity duration-300"
+                style={{ opacity: Math.max(0, 1 - (swipeProgress / 50)) }}
+              >
+                <div className="flex items-center gap-2 text-white font-bold text-lg tracking-wide drop-shadow-md">
+                  Place order
+                </div>
+                <div className="text-[10px] text-theme-surface/90 font-extrabold uppercase tracking-widest mt-0.5 animate-pulse">
+                  Swipe to Confirm
+                </div>
+              </div>
+
+              {/* Swipeable Knob */}
+              <div
+                className="w-[56px] h-[56px] bg-theme-surface rounded-xl flex items-center justify-center cursor-grab active:cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-10 touch-none absolute left-[6px] transition-transform"
+                style={{
+                  transform: `translateX(${translateX}px)`,
+                  transitionDuration: isDragging.current ? '0ms' : '300ms',
+                  transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+                }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+              >
+                <ArrowRight size={22} className="text-theme-primary" strokeWidth={3.5} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

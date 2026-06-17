@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@tablenet/supabase';
 
@@ -24,165 +24,70 @@ const Timer = ({ createdAt }) => {
   return <>{elapsed}</>;
 };
 
-export default function OrderTrackingPage({ orders, onClose, restaurantId }) {
-  const [hideTotal, setHideTotal] = useState(false);
-  const [settingsLoading, setSettingsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!restaurantId) return;
-
-    const fetchSettings = async () => {
-      console.log("Fetching settings for restaurantId:", restaurantId);
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('hide_customer_total')
-        .eq('id', restaurantId)
-        .single();
-
-      console.log("Settings fetched:", data, error);
-      if (data) {
-        setHideTotal(data.hide_customer_total);
-      }
-      setSettingsLoading(false);
-    };
-
-    fetchSettings();
-
-    // Listen for real-time updates to the restaurant settings
-    const channel = supabase.channel(`public:restaurants:${restaurantId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'restaurants', filter: `id=eq.${restaurantId}` },
-        (payload) => {
-          if (payload.new && payload.new.hide_customer_total !== undefined) {
-            setHideTotal(payload.new.hide_customer_total);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [restaurantId]);
-
-  if (settingsLoading) return null;
+export default function OrderTrackingPage({ orders, onClose, restaurantId, hideTotal }) {
   if (!orders || orders.length === 0) return null;
 
-  // Flatten items
-  const flatItems = [];
-  orders.forEach(order => {
-    order.items.forEach(item => {
-      flatItems.push({
-        ...item,
-        orderStatus: order.status,
-        orderCreatedAt: order.created_at
-      });
-    });
-  });
-
-  const getStatusDisplay = (status) => {
-    switch (status) {
-      case 'placed':
-        return { text: 'ORDERED', bg: 'bg-amber-100', textCol: 'text-amber-700' };
-      case 'preparing':
-        return { text: 'PREPARING', bg: 'bg-orange-100', textCol: 'text-orange-700' };
-      case 'ready':
-        return { text: 'READY', bg: 'bg-green-100', textCol: 'text-green-700' };
-      case 'served':
-        return { text: 'SERVED', bg: 'bg-slate-100', textCol: 'text-slate-600' };
-      default:
-        return { text: 'CONFIRMED', bg: 'bg-amber-100', textCol: 'text-amber-700' };
-    }
-  };
-
-  const total = flatItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
   return (
-    <div className="min-h-screen bg-[#FDFCF7] pb-24 font-sans animate-in slide-in-from-right-4 duration-300">
-      {/* Header */}
-      <header className="px-4 py-6 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0 z-10 shadow-sm">
-        <button onClick={onClose} className="w-10 h-10 bg-[#FDFCF7] rounded-full flex items-center justify-center shadow-sm">
-          <ArrowLeft size={20} className="text-slate-800" />
-        </button>
-        <h1 className="text-xl font-bold text-slate-900">Orders</h1>
-        <div className="w-10"></div> {/* Spacer */}
-      </header>
+    <div className="pt-6 px-4 pb-4 space-y-4">
+      {orders.map((order) => {
+        const orderTotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-      <div className="p-4 space-y-4">
-        {flatItems.map((item, idx) => {
-          const statusStyle = getStatusDisplay(item.orderStatus);
+        return (
+          <div key={order.id} className="bg-theme-surface p-5 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <span className="font-bold text-theme-text-sec uppercase tracking-widest text-sm">
+                Order #{order.id.substring(0, 6).toUpperCase()}
+              </span>
+              {!hideTotal && (
+                <span className="font-bold text-theme-primary text-lg">
+                  ₹{Math.round(orderTotal)}
+                </span>
+              )}
+            </div>
 
-          return (
-            <div key={idx} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-50 relative">
-              <div className="flex justify-between items-start">
-
-                {/* Left Side: Name, Veg, Status, Timer */}
-                <div className="flex-1">
-                  <div className="flex items-start gap-2 mb-3">
-                    <div className={`mt-1 w-4 h-4 border-2 flex items-center justify-center shrink-0 rounded-sm ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
-                      <div className={`w-2 h-2 rounded-full ${item.is_veg !== false ? 'bg-green-600' : 'bg-[#8B4513]'}`}></div>
-                    </div>
-                    <h3 className="font-bold text-[16px] leading-tight text-slate-900 uppercase">
-                      {item.name}
-                    </h3>
-                  </div>
-
-                  <div className="flex items-start gap-4 ml-6">
-                    {/* Status Pill */}
-                    <div className={`px-3 py-1.5 rounded-full font-bold text-[11px] tracking-wide ${statusStyle.bg} ${statusStyle.textCol}`}>
-                      {statusStyle.text}
-                    </div>
-
-                    {/* Timer */}
-                    {item.orderStatus !== 'served' ? (
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">
-                          Preparation Time
-                        </span>
-                        <span className="text-lg font-bold text-red-500 leading-none mt-1">
-                          <Timer createdAt={item.orderCreatedAt} />
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col justify-center">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Completed
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Side: Quantity, Price */}
-                <div className="shrink-0 flex flex-col items-end justify-between h-full min-h-[5rem]">
-                  {/* Quantity Box */}
-                  <div className="border-2 border-slate-200 rounded-2xl w-14 h-10 flex items-center justify-center">
-                    <span className="font-bold text-lg text-slate-900">{item.quantity}</span>
-                  </div>
-
-                  {/* Price */}
-                  {!hideTotal && (
-                    <div className="mt-6 text-right">
-                      <div className="font-bold text-slate-900 text-lg leading-none">
-                        ₹{Math.round(item.price * item.quantity)} <span className="text-[11px] font-bold text-slate-500 tracking-wider inline-block ml-0.5">+5% GST</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+            {/* Timeline */}
+            <div className="flex items-center justify-between mb-6 bg-theme-bg p-3 rounded-xl border border-slate-100">
+              <div className={`font-bold text-[10px] uppercase tracking-wider ${['placed', 'preparing', 'ready', 'served'].includes(order.status) ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
+                Placed
+              </div>
+              <ArrowRight size={14} className="text-slate-200" />
+              <div className={`font-bold text-[10px] uppercase tracking-wider ${['preparing', 'ready', 'served'].includes(order.status) ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
+                Preparing
+              </div>
+              <ArrowRight size={14} className="text-slate-200" />
+              <div className={`font-bold text-[10px] uppercase tracking-wider ${['ready', 'served'].includes(order.status) ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
+                Ready
               </div>
             </div>
-          );
-        })}
 
-        {/* Total Summary */}
-        {!hideTotal && (
-          <div className="mt-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center">
-            <span className="font-bold text-slate-500 uppercase tracking-wider text-sm">Total Amount</span>
-            <span className="font-black text-2xl text-slate-900">₹{Math.round(total)}</span>
+            <div className="space-y-1.5 mt-2">
+              {order.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-[13px] font-medium">
+                  <span className="text-theme-text-sec">
+                    <span className="font-bold text-theme-text-main mr-2">{item.quantity}x</span> 
+                    {item.name}
+                  </span>
+                  <span className="text-theme-text-main font-bold">
+                    ₹{Math.round(item.price * item.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+        );
+      })}
+
+      {!hideTotal && (
+        <div className="bg-theme-primary text-theme-surface p-5 rounded-2xl shadow-md mt-6 flex justify-between items-center">
+          <div className="font-bold text-lg">Grand Total</div>
+          <div className="font-bold text-2xl">
+            ₹{Math.round(orders.reduce((total, order) => total + order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), 0))}
+          </div>
+        </div>
+      )}
+
+      <div className="text-center text-theme-text-sec text-xs font-medium px-8 pt-6 pb-6 leading-relaxed">
+        Take your time and enjoy your meal! You can settle the bill at the front desk whenever you're ready to leave.
       </div>
     </div>
   );
