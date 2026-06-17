@@ -15,6 +15,7 @@ function CustomerView() {
   const [restaurantId, setRestaurantId] = useState(null);
   const [sessionId, setSessionId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const [cart, setCart] = useState(() => {
     try {
@@ -76,11 +77,24 @@ function CustomerView() {
           setTableNumber(data.table_number);
           setTableId(data.id);
           setRestaurantId(data.restaurant_id);
+          setIsReadOnly(false);
         } else {
-          setTableNumber(qrToken.replace('tbl_abc', '').replace(/^0+/, ''));
+          setIsReadOnly(true);
+          setActiveTab('menu');
+          setTableNumber('');
+          const { data: restData } = await supabase.from('restaurants').select('id').limit(1).single();
+          if (restData) {
+            setRestaurantId(restData.id);
+          }
         }
       } catch (e) {
-        setTableNumber(qrToken.replace('tbl_abc', '').replace(/^0+/, ''));
+        setIsReadOnly(true);
+        setActiveTab('menu');
+        setTableNumber('');
+        const { data: restData } = await supabase.from('restaurants').select('id').limit(1).single();
+        if (restData) {
+          setRestaurantId(restData.id);
+        }
       } finally {
         setTimeout(() => setLoading(false), 800);
       }
@@ -308,19 +322,31 @@ function CustomerView() {
         <div>
           <div className="text-[10px] font-bold text-theme-text-sec uppercase tracking-widest">TableNet • {currentTime}</div>
           <div className="font-bold text-xl tracking-tight text-theme-text-main mt-0.5">
-            {activeTab === 'home' && `${getGreeting()}!`}
-            {activeTab === 'menu' && 'Our Menu'}
-            {activeTab === 'tracking' && 'Live Orders'}
-            {activeTab === 'cart' && 'Your Cart'}
+            {isReadOnly ? `${getGreeting()}!` : (
+              <>
+                {activeTab === 'home' && `${getGreeting()}!`}
+                {activeTab === 'menu' && 'Our Menu'}
+                {activeTab === 'tracking' && 'Live Orders'}
+                {activeTab === 'cart' && 'Your Cart'}
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1 rounded-full border border-theme-primary bg-theme-primary/10 text-theme-primary font-bold text-xs shadow-sm">
-            Table {tableNumber || '2'}
-          </div>
-          <button onClick={() => setIsAssistanceModalOpen(true)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center bg-theme-surface shadow-sm hover:bg-slate-50 transition-colors">
-            <Bell size={18} className="text-slate-700" />
-          </button>
+          {isReadOnly ? (
+            <div className="px-3 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-500 font-bold text-xs shadow-sm uppercase tracking-wider">
+              Menu Only
+            </div>
+          ) : (
+            <>
+              <div className="px-3 py-1 rounded-full border border-theme-primary bg-theme-primary/10 text-theme-primary font-bold text-xs shadow-sm">
+                Table {tableNumber || '2'}
+              </div>
+              <button onClick={() => setIsAssistanceModalOpen(true)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center bg-theme-surface shadow-sm hover:bg-slate-50 transition-colors">
+                <Bell size={18} className="text-slate-700" />
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -415,6 +441,10 @@ function CustomerView() {
                                 <button disabled className="bg-slate-200 text-theme-text-sec font-bold text-[11px] px-3 py-1.5 rounded uppercase cursor-not-allowed">
                                   N/A
                                 </button>
+                              ) : isReadOnly ? (
+                                <div className="text-[11px] font-bold text-theme-text-sec uppercase tracking-wider px-2 py-1.5">
+                                  View Only
+                                </div>
                               ) : cartItem ? (
                                 <div className="flex items-center bg-theme-primary rounded overflow-hidden">
                                   <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 text-white hover:bg-black/10 active:bg-black/20 transition-colors">
@@ -453,6 +483,7 @@ function CustomerView() {
             activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
             categories={categories}
+            isReadOnly={isReadOnly}
           />
         </div>
 
@@ -487,7 +518,7 @@ function CustomerView() {
       </main>
 
       {/* Floating Cart Banner */}
-      {cart.length > 0 && (activeTab === 'menu' || activeTab === 'home') && (
+      {!isReadOnly && cart.length > 0 && (activeTab === 'menu' || activeTab === 'home') && (
         <div className="fixed bottom-[5.5rem] left-1/2 -translate-x-1/2 w-[calc(100%-16px)] max-w-[calc(28rem-16px)] z-40 pointer-events-none">
           <div className="w-full bg-theme-primary text-theme-surface rounded-2xl shadow-xl p-3 flex justify-between items-center cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] animate-slideUp pointer-events-auto" onClick={() => setActiveTab('cart')}>
             <div className="flex items-center gap-3 flex-shrink min-w-0">
@@ -514,43 +545,45 @@ function CustomerView() {
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-theme-surface rounded-t-3xl pb-safe border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-1">
-        <div className="px-4 py-2 flex justify-between items-center relative">
+      {!isReadOnly && (
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-theme-surface rounded-t-3xl pb-safe border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-1">
+          <div className="px-4 py-2 flex justify-between items-center relative">
 
-          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'home' ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
-            <Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
-            <span className="text-[10px] font-bold mt-1">Home</span>
-          </button>
+            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'home' ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
+              <Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
+              <span className="text-[10px] font-bold mt-1">Home</span>
+            </button>
 
-          <button onClick={() => setActiveTab('menu')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'menu' ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
-            <MenuIcon size={22} strokeWidth={activeTab === 'menu' ? 3 : 2} />
-            <span className="text-[10px] font-bold mt-1">Menu</span>
-          </button>
+            <button onClick={() => setActiveTab('menu')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'menu' ? 'text-theme-primary' : 'text-theme-text-sec'}`}>
+              <MenuIcon size={22} strokeWidth={activeTab === 'menu' ? 3 : 2} />
+              <span className="text-[10px] font-bold mt-1">Menu</span>
+            </button>
 
-          <button onClick={() => setActiveTab('tracking')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'tracking' ? 'text-theme-primary' : 'text-theme-text-sec'} relative`}>
-            <div className="relative">
-              <FileText size={22} strokeWidth={activeTab === 'tracking' ? 2.5 : 2} />
-              {activeOrders.length > 0 && activeTab !== 'tracking' && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-theme-primary rounded-full border-2 border-white animate-pulse"></span>
-              )}
-            </div>
-            <span className="text-[10px] font-bold mt-1">Orders</span>
-          </button>
+            <button onClick={() => setActiveTab('tracking')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'tracking' ? 'text-theme-primary' : 'text-theme-text-sec'} relative`}>
+              <div className="relative">
+                <FileText size={22} strokeWidth={activeTab === 'tracking' ? 2.5 : 2} />
+                {activeOrders.length > 0 && activeTab !== 'tracking' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-theme-primary rounded-full border-2 border-white animate-pulse"></span>
+                )}
+              </div>
+              <span className="text-[10px] font-bold mt-1">Orders</span>
+            </button>
 
-          <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'cart' ? 'text-theme-primary' : 'text-theme-text-sec'} relative`}>
-            <div className="relative">
-              <ShoppingBag size={22} strokeWidth={activeTab === 'cart' ? 2.5 : 2} />
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-theme-primary text-theme-surface text-[9px] font-black min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full border-2 border-white">
-                  {cartItemsCount}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] font-bold mt-1">Cart</span>
-          </button>
+            <button onClick={() => setActiveTab('cart')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'cart' ? 'text-theme-primary' : 'text-theme-text-sec'} relative`}>
+              <div className="relative">
+                <ShoppingBag size={22} strokeWidth={activeTab === 'cart' ? 2.5 : 2} />
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-theme-primary text-theme-surface text-[9px] font-black min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full border-2 border-white">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-bold mt-1">Cart</span>
+            </button>
 
-        </div>
-      </nav>
+          </div>
+        </nav>
+      )}
 
       {/* Assistance Modal */}
       <AssistanceModal
