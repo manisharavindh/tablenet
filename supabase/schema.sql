@@ -110,6 +110,14 @@ CREATE POLICY "Staff can update tables in their restaurant" ON public.tables
     FOR UPDATE TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
+CREATE POLICY "Staff can insert tables in their restaurant" ON public.tables
+    FOR INSERT TO authenticated
+    WITH CHECK (restaurant_id = get_user_restaurant_id());
+
+CREATE POLICY "Staff can delete tables in their restaurant" ON public.tables
+    FOR DELETE TO authenticated
+    USING (restaurant_id = get_user_restaurant_id());
+
 -- Menu Items Policies
 CREATE POLICY "Anyone can view menu items" ON public.menu_items
     FOR SELECT TO public

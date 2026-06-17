@@ -579,8 +579,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/t/:qrToken" element={<CustomerView />} />
-        <Route path="*" element={<Navigate to="/t/tbl_abc001" replace />} />
+        <Route path="/:qrToken" element={<CustomerView />} />
+        <Route path="*" element={<Navigate to="/invalid-table" replace />} />
       </Routes>
     </BrowserRouter>
   );

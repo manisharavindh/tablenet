@@ -8,29 +8,7 @@ import Login from './components/Login';
 import { supabase } from '@tablenet/supabase';
 import { useEffect, useRef } from 'react';
 
-const playBeep = () => {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    // Two quick beeps
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-    oscillator.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.15); // C6
-    
-    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-    
-    oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + 0.5);
-  } catch (e) {
-    console.error("Audio playback failed", e);
-  }
-};
+import { playNotificationSound } from './utils/soundProfiles';
 
 function GlobalNotificationListener() {
   const { user } = useAuth();
@@ -43,7 +21,11 @@ function GlobalNotificationListener() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         const order = payload.new;
         if (order.status === 'ready' && !processedOrders.current.has(order.id)) {
-          playBeep();
+          const soundDisabled = localStorage.getItem('waiter_sound_disabled') === 'true';
+          if (!soundDisabled) {
+            const profile = localStorage.getItem('waiter_sound_profile') || 'classic';
+            playNotificationSound(profile);
+          }
           
           if ('vibrate' in navigator) {
             navigator.vibrate([200, 100, 200]);

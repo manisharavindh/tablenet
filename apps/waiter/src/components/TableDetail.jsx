@@ -15,10 +15,28 @@ export default function TableDetail({ table, onBack, waiterId }) {
   });
 
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [isClosingBill, setIsClosingBill] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isClosingTransfer, setIsClosingTransfer] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
 
   const navigate = useNavigate();
+
+  const handleCloseBill = () => {
+    setIsClosingBill(true);
+    setTimeout(() => {
+      setIsClosingBill(false);
+      setIsBillModalOpen(false);
+    }, 300);
+  };
+
+  const handleCloseTransfer = () => {
+    setIsClosingTransfer(true);
+    setTimeout(() => {
+      setIsClosingTransfer(false);
+      setIsTransferModalOpen(false);
+    }, 300);
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -245,15 +263,16 @@ export default function TableDetail({ table, onBack, waiterId }) {
       </div>
 
       {/* Bill Modal */}
-      {isBillModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-8">
+      {(isBillModalOpen || isClosingBill) && (
+        <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] flex flex-col justify-end pointer-events-none">
+          <div className={`absolute inset-0 bg-black/40 pointer-events-auto ${isClosingBill ? 'animate-fadeOut' : 'animate-fadeIn'}`} onClick={handleCloseBill}></div>
+          <div className={`bg-white w-full rounded-t-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10 pointer-events-auto ${isClosingBill ? 'animate-slideDown' : 'animate-slideUp'}`}>
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-2xl font-black text-theme-text-main flex items-center gap-2">
                 <Receipt size={24} className="text-theme-primary" />
                 Table {table.number} Bill
               </h2>
-              <button onClick={() => setIsBillModalOpen(false)} className="p-2 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
+              <button onClick={handleCloseBill} className="p-2 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -292,7 +311,7 @@ export default function TableDetail({ table, onBack, waiterId }) {
               )}
             </div>
 
-            <div className="p-6 bg-slate-50 border-t border-slate-100 pb-safe">
+            <div className="p-6 bg-slate-50 border-t border-slate-100 pb-10">
               <SlideToConfirm
                 onConfirm={clearTableAndFinish}
                 text="Paid & Clear"
@@ -305,20 +324,21 @@ export default function TableDetail({ table, onBack, waiterId }) {
       )}
 
       {/* Transfer Modal */}
-      {isTransferModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-bottom-8">
+      {(isTransferModalOpen || isClosingTransfer) && (
+        <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] flex flex-col justify-end pointer-events-none">
+          <div className={`absolute inset-0 bg-black/40 pointer-events-auto ${isClosingTransfer ? 'animate-fadeOut' : 'animate-fadeIn'}`} onClick={handleCloseTransfer}></div>
+          <div className={`bg-white w-full rounded-t-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh] relative z-10 pointer-events-auto ${isClosingTransfer ? 'animate-slideDown' : 'animate-slideUp'}`}>
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-xl font-black text-theme-text-main flex items-center gap-2">
                 <ArrowRightLeft size={24} className="text-blue-500" />
                 Transfer Table
               </h2>
-              <button onClick={() => setIsTransferModalOpen(false)} className="p-2 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
+              <button onClick={handleCloseTransfer} className="p-2 bg-slate-50 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pb-10">
               <p className="text-slate-500 text-sm font-medium mb-4">Select an available table to transfer all orders and assistance requests to:</p>
 
               {availableTables.length === 0 ? (

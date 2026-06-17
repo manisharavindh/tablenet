@@ -1,6 +1,7 @@
-import { Users, Clock } from 'lucide-react';
+import { Users, Clock, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@tablenet/supabase';
+import WaiterSettings from './WaiterSettings';
 
 export default function TablesOverview({ onSelectTable }) {
   const [tables, setTables] = useState(() => {
@@ -8,6 +9,7 @@ export default function TablesOverview({ onSelectTable }) {
     return cached ? JSON.parse(cached) : [];
   });
   const [filter, setFilter] = useState('all');
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchTablesAndOrders();
@@ -138,9 +140,17 @@ export default function TablesOverview({ onSelectTable }) {
   return (
     <div className="p-4 max-w-md mx-auto pb-24 pt-6 bg-theme-bg min-h-screen">
       <div className="mb-6 px-2">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <h1 className="text-2xl font-black tracking-tight italic text-theme-text-main">tablenet</h1>
-          <span className="bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest">waiter</span>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight italic text-theme-text-main">tablenet</h1>
+            <span className="bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest">waiter</span>
+          </div>
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 bg-white border border-slate-100 rounded-full shadow-sm text-slate-400 hover:text-theme-text-main transition-colors active:scale-95"
+          >
+            <Settings size={20} />
+          </button>
         </div>
         
         <div className="flex flex-col gap-2">
@@ -208,6 +218,8 @@ export default function TablesOverview({ onSelectTable }) {
           </div>
         )}
       </div>
+
+      {showSettings && <WaiterSettings onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
