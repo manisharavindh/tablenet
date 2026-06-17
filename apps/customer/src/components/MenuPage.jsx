@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@tablenet/supabase';
 import ImageFallback from './ImageFallback';
 
-export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuantity, searchQuery, setSearchQuery, activeCategory, setActiveCategory, categories }) {
+export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuantity, searchQuery, setSearchQuery, activeCategory, setActiveCategory, categories, isReadOnly }) {
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -132,6 +132,10 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
                       <button disabled className="bg-slate-200 text-theme-text-sec font-bold text-[11px] px-3 py-1.5 rounded uppercase cursor-not-allowed">
                         N/A
                       </button>
+                    ) : isReadOnly ? (
+                      <div className="text-[11px] font-bold text-theme-text-sec uppercase tracking-wider px-2 py-1.5">
+                        View Only
+                      </div>
                     ) : cartItem ? (
                       <div className="flex items-center bg-theme-primary rounded overflow-hidden">
                         <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 text-theme-surface hover:bg-black/10 active:bg-black/20 transition-colors">
