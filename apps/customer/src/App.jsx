@@ -514,7 +514,7 @@ function CustomerView() {
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-theme-surface rounded-t-3xl pb-safe border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-theme-surface rounded-t-3xl pb-safe border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-1">
         <div className="px-4 py-2 flex justify-between items-center relative">
 
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${activeTab === 'home' ? 'text-theme-primary' : 'text-theme-text-sec'}`}>

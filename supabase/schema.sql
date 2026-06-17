@@ -29,6 +29,7 @@ CREATE TABLE public.tables (
     table_number TEXT NOT NULL,
     qr_token TEXT UNIQUE NOT NULL, -- Static token glued to table
     status table_status DEFAULT 'available'::table_status NOT NULL,
+    capacity INTEGER DEFAULT 4 NOT NULL,
     UNIQUE(restaurant_id, table_number)
 );
 

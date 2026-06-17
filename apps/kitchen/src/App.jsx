@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-dom';
-import { ChefHat, ListTree, QrCode, Settings } from 'lucide-react';
+import { ChefHat, ListTree, Grid, Settings } from 'lucide-react';
 import LiveTicketBoard from './components/LiveTicketBoard';
 import MenuManager from './components/MenuManager';
-import QRCodeManager from './components/QRCodeManager';
+import TableManager from './components/TableManager';
 import SettingsManager from './components/SettingsManager';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
@@ -15,7 +15,7 @@ function PrivateRoute({ children }) {
 
 function KitchenView() {
   const { kitchenId } = useParams();
-  const [activeTab, setActiveTab] = useState('tickets'); // 'tickets', 'menu', 'qr', 'settings'
+  const [activeTab, setActiveTab] = useState('tickets'); // 'tickets', 'menu', 'tables', 'settings'
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
@@ -46,11 +46,11 @@ function KitchenView() {
             Menu
           </button>
           <button 
-            onClick={() => setActiveTab('qr')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap snap-start ${activeTab === 'qr' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
+            onClick={() => setActiveTab('tables')}
+            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap snap-start ${activeTab === 'tables' ? 'bg-surface shadow-soft text-primary' : 'text-secondary hover:text-primary'}`}
           >
-            <QrCode size={18} />
-            QR Codes
+            <Grid size={18} />
+            Tables
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -65,7 +65,7 @@ function KitchenView() {
       <main className="flex-1 overflow-auto">
         {activeTab === 'tickets' && <LiveTicketBoard />}
         {activeTab === 'menu' && <MenuManager />}
-        {activeTab === 'qr' && <QRCodeManager />}
+        {activeTab === 'tables' && <TableManager />}
         {activeTab === 'settings' && <SettingsManager />}
       </main>
     </div>

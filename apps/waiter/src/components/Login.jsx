@@ -21,36 +21,41 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <form onSubmit={handleLogin} className="card w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-primary">Waiter Portal</h1>
-          <p className="text-secondary text-sm mt-1">Sign in to your account</p>
+    <div className="min-h-[100dvh] bg-theme-bg flex flex-col p-6">
+      <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-theme-primary text-white rounded-3xl mx-auto flex items-center justify-center text-4xl font-bold shadow-lg shadow-red-500/30 mb-6 transform -rotate-6">
+            TN
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-theme-text-main">Staff Portal</h1>
+          <p className="text-theme-text-sec text-sm mt-2">Sign in to access your tables</p>
         </div>
         
-        {error && <div className="bg-danger/10 text-danger p-3 rounded-lg text-sm text-center">{error}</div>}
-        
-        <div className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="Email address" 
-            className="w-full p-4 rounded-xl bg-surface shadow-inset outline-none focus:ring-2 focus:ring-accent/50 transition-all" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            className="w-full p-4 rounded-xl bg-surface shadow-inset outline-none focus:ring-2 focus:ring-accent/50 transition-all" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-          />
-        </div>
-        
-        <button type="submit" className="btn btn-primary w-full py-4 text-lg">
-          Sign In
-        </button>
-      </form>
+        <form onSubmit={handleLogin} className="space-y-6">
+          {error && <div className="bg-red-50 text-theme-primary p-4 rounded-2xl text-sm text-center font-medium border border-red-100">{error}</div>}
+          
+          <div className="space-y-4">
+            <input 
+              type="email" 
+              placeholder="Email address" 
+              className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-theme-primary/50 transition-all text-theme-text-main placeholder-slate-400" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+            />
+            <input 
+              type="password" 
+              placeholder="Password" 
+              className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-theme-primary/50 transition-all text-theme-text-main placeholder-slate-400" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+            />
+          </div>
+          
+          <button type="submit" className="btn btn-primary w-full py-4 text-lg mt-8">
+            Sign In
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
