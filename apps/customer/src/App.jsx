@@ -5,6 +5,7 @@ import MenuPage from './components/MenuPage';
 import CartPage from './components/CartPage';
 import OrderTrackingPage from './components/OrderTrackingPage';
 import AssistanceModal from './components/AssistanceModal';
+import ImageFallback from './components/ImageFallback';
 import { supabase } from '@tablenet/supabase';
 
 function CustomerView() {
@@ -87,6 +88,14 @@ function CustomerView() {
 
     resolveTable();
   }, [qrToken]);
+
+  useEffect(() => {
+    if (tableNumber) {
+      document.title = `TableNet | Table ${tableNumber}`;
+    } else {
+      document.title = 'TableNet | Customer Portal';
+    }
+  }, [tableNumber]);
 
   useEffect(() => {
     if (!tableId) return;
@@ -283,17 +292,18 @@ function CustomerView() {
 
   const cartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FDFCF7] flex flex-col items-center justify-center font-sans">
-        <div className="w-16 h-16 border-4 border-slate-200 border-t-accent rounded-full animate-spin mb-4 shadow-soft"></div>
-        <h1 className="text-xl font-bold text-primary animate-pulse tracking-tight">Resolving Table...</h1>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen relative font-sans bg-theme-bg animate-in fade-in duration-500 pb-24">
+    <div className={`min-h-screen relative font-sans bg-theme-bg animate-in fade-in duration-500 pb-24 ${loading ? 'overflow-hidden h-screen' : ''}`}>
+      {loading && (
+        <div className="absolute inset-0 z-[999] bg-theme-primary flex flex-col items-center justify-center font-sans">
+          <h1 className="text-[3.5rem] leading-none font-black text-white italic tracking-tighter mb-4">tablenet</h1>
+          <div className="flex gap-2.5">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+          </div>
+        </div>
+      )}
       <header className="sticky top-0 z-30 bg-theme-surface px-4 py-4 max-w-md mx-auto flex items-center justify-between border-b border-slate-100 shadow-sm">
         <div>
           <div className="text-[10px] font-bold text-theme-text-sec uppercase tracking-widest">TableNet • {currentTime}</div>
@@ -374,7 +384,7 @@ function CustomerView() {
                     return (
                       <div key={item.id} className={`bg-theme-surface rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col ${!item.is_available ? 'opacity-60 grayscale' : ''}`}>
                         <div className="relative aspect-square">
-                          <img src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80'} alt={item.name} className="w-full h-full object-cover" />
+                          <ImageFallback src={item.image_url} name={item.name} className="w-full h-full object-cover" />
 
                           {/* Out of stock overlay */}
                           {!item.is_available && (
@@ -431,7 +441,7 @@ function CustomerView() {
             )}
           </div>
         </div>
-        
+
         <div className={activeTab === 'menu' ? 'block' : 'hidden'}>
           <MenuPage
             onAddToCart={handleAddToCart}
@@ -445,7 +455,7 @@ function CustomerView() {
             categories={categories}
           />
         </div>
-        
+
         {activeTab === 'cart' && (
           <CartPage
             isOpen={true}
@@ -479,26 +489,25 @@ function CustomerView() {
       {/* Floating Cart Banner */}
       {cart.length > 0 && (activeTab === 'menu' || activeTab === 'home') && (
         <div className="fixed bottom-[5.5rem] left-1/2 -translate-x-1/2 w-[calc(100%-16px)] max-w-[calc(28rem-16px)] z-40 pointer-events-none">
-          <div className="w-full bg-theme-primary text-theme-surface rounded-2xl shadow-xl p-2 flex justify-between items-center cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] animate-slideUp pointer-events-auto" onClick={() => setActiveTab('cart')}>
-            <div className="flex items-center gap-2 flex-shrink min-w-0">
+          <div className="w-full bg-theme-primary text-theme-surface rounded-2xl shadow-xl p-3 flex justify-between items-center cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] animate-slideUp pointer-events-auto" onClick={() => setActiveTab('cart')}>
+            <div className="flex items-center gap-3 flex-shrink min-w-0">
               <div className="flex -space-x-2 sm:-space-x-3 flex-shrink-0">
                 {cart.slice(0, 2).map(item => (
-                  <img key={item.id} src={item.image_url} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl border-2 border-theme-primary object-cover bg-theme-surface" alt="" />
+                  <ImageFallback key={item.id} src={item.image_url} name={item.name} className="w-10 h-10 rounded-xl border-2 border-theme-primary object-cover bg-theme-surface shadow-sm" alt="" />
                 ))}
                 {cart.length > 2 && (
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl border-2 border-theme-primary bg-theme-surface text-theme-primary flex items-center justify-center font-bold text-xs sm:text-sm z-10">
+                  <div className="w-10 h-10 rounded-xl border-2 border-theme-primary bg-theme-surface text-theme-primary flex items-center justify-center font-bold text-sm z-10 shadow-sm">
                     +{cart.length - 2}
                   </div>
                 )}
               </div>
-              <span className="font-bold text-sm sm:text-base truncate">
+              <span className="font-bold text-base truncate">
                 {cartItemsCount} item{cartItemsCount !== 1 && 's'}
                 <span className="hidden sm:inline"> added</span>
               </span>
             </div>
-            <div className="flex items-center font-bold text-sm sm:text-base flex-shrink-0 ml-2 bg-theme-surface text-theme-primary px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl">
+            <div className="flex items-center font-bold text-base flex-shrink-0 ml-2 bg-theme-surface text-theme-primary px-5 py-2.5 rounded-xl shadow-sm">
               View cart
-              {/* <span className="ml-1 mb-0.5">&gt;</span> */}
             </div>
           </div>
         </div>
@@ -552,10 +561,12 @@ function CustomerView() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none w-full max-w-md px-4 flex justify-center">
-          <div className="bg-slate-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            {toast}
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none w-full max-w-md px-4 flex justify-center">
+          <div className="bg-theme-surface border border-slate-100 text-theme-text-main px-4 py-2.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-theme-primary/10 flex items-center justify-center flex-shrink-0">
+              <span className="w-2 h-2 rounded-full bg-theme-primary animate-pulse"></span>
+            </div>
+            <span className="font-bold text-[14px] tracking-tight pr-2">{toast}</span>
           </div>
         </div>
       )}

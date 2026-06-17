@@ -1,6 +1,7 @@
 import { Plus, Minus, Search, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@tablenet/supabase';
+import ImageFallback from './ImageFallback';
 
 export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuantity, searchQuery, setSearchQuery, activeCategory, setActiveCategory, categories }) {
   const [menu, setMenu] = useState([]);
@@ -100,7 +101,7 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
           return (
             <div key={item.id} className={`bg-theme-surface rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col ${!item.is_available ? 'opacity-60 grayscale' : ''}`}>
               <div className="relative aspect-square">
-                <img src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80'} alt={item.name} className="w-full h-full object-cover" />
+                <ImageFallback src={item.image_url} name={item.name} className="w-full h-full object-cover" />
 
                 {/* Out of stock overlay */}
                 {!item.is_available && (
