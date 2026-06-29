@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { supabase } from '@tablenet/supabase';
+import { ChefHat, Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Logo from './Logo';
 
 export default function Login() {
   const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   if (user) {
     return <Navigate to="/w/1" replace />;
@@ -16,45 +20,90 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!captchaVerified) {
+      setError("Please complete the captcha.");
+      return;
+    }
+
+    if (email.toLowerCase().trim() !== 'waiter@tablenet.app') {
+      setError("Only the waiter can access the waiter portal.");
+      return;
+    }
+
+    setIsLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setIsLoading(false);
+
     if (error) setError(error.message);
   };
 
   return (
-    <div className="min-h-[100dvh] bg-theme-bg flex flex-col p-6">
-      <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-theme-primary text-white rounded-3xl mx-auto flex items-center justify-center text-4xl font-bold shadow-lg shadow-red-500/30 mb-6 transform -rotate-6">
-            TN
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-surface">
+      {/* Login Form Container */}
+      <div className="w-full p-8 md:p-12 z-10">
+        <div className="w-full max-w-sm">
+          <div className="flex flex-col items-center text-center mb-6">
+            <Logo className="w-56 h-auto drop-shadow-md mb-6" />
+            <h1 className="text-3xl font-black text-theme-text-main tracking-tight">Waiter Portal</h1>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-theme-text-main">Staff Portal</h1>
-          <p className="text-theme-text-sec text-sm mt-2">Sign in to access your tables</p>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm text-center font-medium">{error}</div>}
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-theme-text-sec uppercase tracking-wider ml-1 mb-2 block">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="waiter@tablenet.app"
+                  className="w-full p-4 rounded-xl bg-theme-bg border border-theme-border focus:ring-2 focus:ring-accent/50 outline-none transition-all font-medium text-theme-text-main shadow-inner"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-theme-text-sec uppercase tracking-wider ml-1 mb-2 block">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full p-4 rounded-xl bg-theme-bg border border-theme-border focus:ring-2 focus:ring-accent/50 outline-none transition-all font-medium text-theme-text-main shadow-inner tracking-widest"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Captcha Placeholder */}
+            <div className="bg-theme-bg border border-theme-border rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="w-6 h-6 rounded-md accent-theme-primary cursor-pointer border-slate-300"
+                  id="captcha"
+                  checked={captchaVerified}
+                  onChange={(e) => setCaptchaVerified(e.target.checked)}
+                />
+                <label htmlFor="captcha" className="font-bold text-sm text-theme-text-main cursor-pointer select-none">I'm not a robot</label>
+              </div>
+              <div className="flex flex-col items-center justify-center opacity-80">
+                <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" className="w-8 h-8 object-contain mb-1 drop-shadow-sm" />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">reCAPTCHA</span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full btn btn-primary py-4 text-lg font-bold shadow-lg shadow-theme-primary/20 mt-2 flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+              {isLoading ? '' : 'Authenticate'}
+            </button>
+          </form>
         </div>
-        
-        <form onSubmit={handleLogin} className="space-y-6">
-          {error && <div className="bg-red-50 text-theme-primary p-4 rounded-2xl text-sm text-center font-medium border border-red-100">{error}</div>}
-          
-          <div className="space-y-4">
-            <input 
-              type="email" 
-              placeholder="Email address" 
-              className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-theme-primary/50 transition-all text-theme-text-main placeholder-slate-400" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-            />
-            <input 
-              type="password" 
-              placeholder="Password" 
-              className="w-full p-4 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-theme-primary/50 transition-all text-theme-text-main placeholder-slate-400" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-            />
-          </div>
-          
-          <button type="submit" className="btn btn-primary w-full py-4 text-lg mt-8">
-            Sign In
-          </button>
-        </form>
       </div>
     </div>
   );

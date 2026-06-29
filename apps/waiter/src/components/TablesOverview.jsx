@@ -1,7 +1,8 @@
-import { Users, Clock, Settings } from 'lucide-react';
+import { Users, Clock, Settings, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@tablenet/supabase';
 import WaiterSettings from './WaiterSettings';
+import { playNotificationSound } from '../utils/soundProfiles';
 
 export default function TablesOverview({ onSelectTable }) {
   const [tables, setTables] = useState(() => {
@@ -10,9 +11,24 @@ export default function TablesOverview({ onSelectTable }) {
   });
   const [filter, setFilter] = useState('all');
   const [showSettings, setShowSettings] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('waiter_sound_disabled') !== 'true');
+
+  const toggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    localStorage.setItem('waiter_sound_disabled', (!newState).toString());
+    if (newState) {
+      const profile = localStorage.getItem('waiter_sound_profile') || 'classic';
+      playNotificationSound(profile);
+    }
+  };
 
   useEffect(() => {
     fetchTablesAndOrders();
+
+    const intervalId = setInterval(() => {
+      fetchTablesAndOrders();
+    }, 30000);
 
     const channel1 = supabase.channel('waiter-tables')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, fetchTablesAndOrders)
@@ -27,6 +43,7 @@ export default function TablesOverview({ onSelectTable }) {
       .subscribe();
 
     return () => {
+      clearInterval(intervalId);
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
       supabase.removeChannel(channel3);
@@ -34,6 +51,9 @@ export default function TablesOverview({ onSelectTable }) {
   }, []);
 
   const fetchTablesAndOrders = async () => {
+    // Clean up expired sessions server-side first
+    await supabase.rpc('cleanup_expired_sessions');
+
     // RLS handles filtering by the user's restaurant_id
     const [{ data: tablesData }, { data: ordersData }, { data: assistanceData }] = await Promise.all([
       supabase.from('tables').select('*').order('table_number', { ascending: true }),
@@ -48,11 +68,23 @@ export default function TablesOverview({ onSelectTable }) {
         const activeOrders = tableOrders.filter(o => o.status !== 'served');
         const servedOrders = tableOrders.filter(o => o.status === 'served');
 
-        const tableRequests = assistanceData.filter(r => r.table_id === table.id);
+        const tableRequests = assistanceData ? assistanceData.filter(r => r.table_id === table.id) : [];
         const needsAssistance = tableRequests.length > 0;
 
         let status = 'open';
         let timeSeated = null;
+        let remainingMins = null;
+
+        if (table.session_start_time) {
+          const seatedTimeStr = new Date(table.session_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const elapsed = getFormattedTimeSince(table.session_start_time);
+          timeSeated = `Seated at ${seatedTimeStr}`;
+        }
+
+        if (table.active_session_id && table.session_ends_at) {
+          status = 'seated';
+          remainingMins = Math.max(0, Math.ceil((new Date(table.session_ends_at).getTime() - new Date().getTime()) / 60000));
+        }
 
         if (activeOrders.length > 0) {
           const hasReady = activeOrders.some(o => o.status === 'ready');
@@ -60,11 +92,8 @@ export default function TablesOverview({ onSelectTable }) {
           const hasPlaced = activeOrders.some(o => o.status === 'placed');
           if (hasReady) status = 'waiting';
           else status = 'seated';
-
-          timeSeated = getFormattedTimeSince(activeOrders[0].created_at);
         } else if (servedOrders.length > 0) {
           status = 'served';
-          timeSeated = getFormattedTimeSince(servedOrders[0].created_at);
         }
 
         return {
@@ -73,6 +102,7 @@ export default function TablesOverview({ onSelectTable }) {
           capacity: table.capacity || 4,
           status,
           timeSeated,
+          remainingMins,
           needsAssistance,
           assistanceRequests: tableRequests
         };
@@ -145,14 +175,23 @@ export default function TablesOverview({ onSelectTable }) {
             <h1 className="text-2xl font-black tracking-tight italic text-theme-text-main">tablenet</h1>
             <span className="bg-theme-primary/10 text-theme-primary px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest">waiter</span>
           </div>
-          <button 
-            onClick={() => setShowSettings(true)}
-            className="p-2 bg-white border border-slate-100 rounded-full shadow-sm text-slate-400 hover:text-theme-text-main transition-colors active:scale-95"
-          >
-            <Settings size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSound}
+              className={`p-2 rounded-full shadow-sm transition-colors active:scale-95 ${soundEnabled ? 'text-theme-primary bg-red-50 border border-red-100 hover:bg-red-100' : 'text-slate-400 bg-white border border-slate-100 hover:text-theme-text-main'}`}
+              title={soundEnabled ? "Sound On" : "Sound Off"}
+            >
+              {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 bg-white border border-slate-100 rounded-full shadow-sm text-slate-400 hover:text-theme-text-main transition-colors active:scale-95"
+            >
+              <Settings size={20} />
+            </button>
+          </div>
         </div>
-        
+
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-3 gap-2">
             <button onClick={() => setFilter('all')} className={getFilterStyle('all')}>
@@ -193,9 +232,16 @@ export default function TablesOverview({ onSelectTable }) {
               <span className="text-3xl font-black flex items-center gap-2 tracking-tight">
                 T{table.number}
               </span>
-              <div className="flex items-center gap-1.5 text-xs font-bold bg-black/5 text-black/60 px-2 py-1 rounded-full">
-                <Users size={12} />
-                <span>{table.capacity}</span>
+              <div className="flex flex-col gap-1 items-end">
+                {table.remainingMins !== null && (
+                  <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${table.remainingMins <= 5
+                    ? 'bg-red-50 text-red-600 border-red-200'
+                    : 'bg-black/5 text-black/60 border-black/10'
+                    }`}>
+                    <Clock size={10} />
+                    <span>{table.remainingMins}m</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -205,7 +251,7 @@ export default function TablesOverview({ onSelectTable }) {
               </span>
               {table.timeSeated && (
                 <div className="flex items-center gap-1 text-xs font-semibold opacity-70 mt-1">
-                  <Clock size={12} />
+                  {/* <Clock size={12} /> */}
                   <span>{table.timeSeated}</span>
                 </div>
               )}
@@ -220,6 +266,6 @@ export default function TablesOverview({ onSelectTable }) {
       </div>
 
       {showSettings && <WaiterSettings onClose={() => setShowSettings(false)} />}
-    </div>
+    </div >
   );
 }

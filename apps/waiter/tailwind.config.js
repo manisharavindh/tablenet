@@ -53,10 +53,10 @@ export default {
         }
       },
       animation: {
-        slideUp: 'slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
-        slideDown: 'slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
-        fadeIn: 'fadeIn 0.4s ease-out forwards',
-        fadeOut: 'fadeOut 0.3s ease-out forwards',
+        slideUp: 'slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        slideDown: 'slideDown 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        fadeIn: 'fadeIn 0.2s ease-out forwards',
+        fadeOut: 'fadeOut 0.15s ease-out forwards',
       }
     },
   },

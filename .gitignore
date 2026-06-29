@@ -135,5 +135,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-imps
 todo.txt
+.DS_Store
+migration.sh
+menu
+new_todo.txt

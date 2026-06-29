@@ -1,0 +1,9 @@
+{
+  "name": "@tablenet/supabase",
+  "version": "1.0.0",
+  "main": "client.js",
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}

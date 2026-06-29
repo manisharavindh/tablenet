@@ -17,7 +17,7 @@ function GlobalNotificationListener() {
   useEffect(() => {
     if (!user) return;
     
-    const channel = supabase.channel('global-ready-notifications')
+    const channel1 = supabase.channel('global-ready-notifications')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
         const order = payload.new;
         if (order.status === 'ready' && !processedOrders.current.has(order.id)) {
@@ -35,9 +35,23 @@ function GlobalNotificationListener() {
         }
       })
       .subscribe();
+
+    const channel2 = supabase.channel('global-assistance-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'assistance_requests' }, (payload) => {
+        const soundDisabled = localStorage.getItem('waiter_sound_disabled') === 'true';
+        if (!soundDisabled) {
+          const profile = localStorage.getItem('waiter_request_sound_profile') || 'alert';
+          playNotificationSound(profile);
+        }
+        if ('vibrate' in navigator) {
+          navigator.vibrate([300, 100, 300]);
+        }
+      })
+      .subscribe();
       
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, [user]);
 

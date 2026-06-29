@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer base {
+  :root {
+    --color-bg: #F8F9FA;
+    --color-surface: #FFFFFF;
+    --color-text-main: #1C1C1C;
+    --color-text-sec: #696969;
+    --color-border: #e2e8f0;
+  }
+  
+  .dark {
+    --color-bg: #0F172A;
+    --color-surface: #1E293B;
+    --color-text-main: #F8FAFC;
+    --color-text-sec: #94A3B8;
+    --color-border: rgba(255, 255, 255, 0.1);
+  }
+
+  body {
+    @apply bg-background text-primary font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface rounded-3xl shadow-sm border border-slate-100 p-6 transition-all duration-300;
+  }
+
+  .btn {
+    @apply rounded-2xl font-bold px-6 py-4 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+
+  .btn-primary {
+    background-color: #E23744; /* theme.primary */
+    @apply text-white shadow-lg shadow-red-500/30;
+  }
+  .btn-primary:active {
+    background-color: #F05A65; /* theme.primary-light */
+  }
+
+  .btn-accent {
+    background-color: #24963F; /* theme.accent */
+    @apply text-white shadow-lg shadow-green-600/30 active:bg-green-700;
+  }
+
+  .neumorphic-toggle {
+    @apply bg-surface shadow-inset rounded-full p-1 cursor-pointer transition-all duration-300;
+  }
+  .neumorphic-toggle-knob {
+    @apply bg-surface shadow-soft rounded-full transition-all duration-300;
+  }
+}

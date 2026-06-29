@@ -37,7 +37,22 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
 
   const displayedMenu = menu.filter(item => {
     const matchesCategory = activeCategory === 'All' || (item.category || 'Uncategorized') === activeCategory;
-    const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!searchQuery) return matchesCategory;
+
+    const lowerQuery = searchQuery.toLowerCase();
+    let matchesSearch = item.name.toLowerCase().includes(lowerQuery);
+
+    // Also match if user searches for 'special' or 'popular'
+    if (!matchesSearch) {
+      if ((lowerQuery.includes('special') || lowerQuery.includes('today')) && item.is_todays_special) {
+        matchesSearch = true;
+      }
+      if (lowerQuery.includes('popular') && item.is_popular) {
+        matchesSearch = true;
+      }
+    }
+
     return matchesCategory && matchesSearch;
   });
 
@@ -78,7 +93,7 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
           </div>
         )}
 
-        <div className="flex overflow-x-auto hide-scrollbar gap-2">
+        <div className="flex overflow-x-auto hide-scrollbar gap-2 -mx-4 px-4">
           {categories.map(cat => (
             <button
               key={cat}
@@ -100,21 +115,35 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
 
           return (
             <div key={item.id} className={`bg-theme-surface rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col ${!item.is_available ? 'opacity-60 grayscale' : ''}`}>
-              <div className="relative aspect-square">
-                <ImageFallback src={item.image_url} name={item.name} className="w-full h-full object-cover" />
+              <div className="relative aspect-square w-full">
+                <ImageFallback src={item.image_url} name={item.name} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" draggable="false" />
 
                 {/* Out of stock overlay */}
                 {!item.is_available && (
-                  <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
-                    <span className="bg-danger text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
+                  <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                    <span className="bg-danger text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">Out of Stock</span>
                   </div>
                 )}
 
                 {/* Veg/Non-Veg Indicator */}
-                <div className="absolute bottom-2 left-2 bg-theme-surface/90 p-0.5 rounded shadow-sm">
-                  <div className={`w-3.5 h-3.5 border flex items-center justify-center ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
+                <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm p-[3px] rounded-md shadow-sm z-10">
+                  <div className={`w-3 h-3 border-[1.5px] flex items-center justify-center rounded-sm ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${item.is_veg !== false ? 'bg-green-600' : 'bg-[#8B4513]'}`}></div>
                   </div>
+                </div>
+
+                {/* Featured badges */}
+                <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+                  {item.is_todays_special && (
+                    <div className="bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                      <span>✨</span> Special
+                    </div>
+                  )}
+                  {item.is_popular && (
+                    <div className="bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                      <span className="text-orange-400">🔥</span> Popular
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,7 +1,8 @@
 import { Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import SuggestedDesserts from './SuggestedDesserts';
 
-export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQuantity, onPlaceOrder, hideTotal, instructions, setInstructions }) {
+export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQuantity, onPlaceOrder, hideTotal, instructions, setInstructions, suggestedItems, onAddToCart, isReadOnly }) {
   const [swipeProgress, setSwipeProgress] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -120,6 +121,14 @@ export default function CartPage({ isOpen, onClose, cart, tableNumber, updateQua
               onChange={(e) => setInstructions(e.target.value)}
             ></textarea>
           </div>
+
+          <SuggestedDesserts 
+            suggestedItems={suggestedItems} 
+            onAddToCart={onAddToCart} 
+            cart={cart} 
+            isReadOnly={isReadOnly} 
+            updateQuantity={updateQuantity}
+          />
 
           {/* Fixed Swipe to Order Button */}
           <div className="fixed bottom-[4.5rem] left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-40">

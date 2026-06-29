@@ -94,27 +94,25 @@ export default function WaiterMenu() {
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
 
-    const { data: existingOrders } = await supabase
-      .from('orders')
-      .select('session_id')
-      .eq('table_id', tableId)
-      .limit(1);
+    const { data: tableData } = await supabase
+      .from('tables')
+      .select('session_secret')
+      .eq('id', tableId)
+      .single();
 
-    const sessionId = (existingOrders && existingOrders.length > 0)
-      ? existingOrders[0].session_id
-      : crypto.randomUUID();
+    if (!tableData && !tableData?.session_secret) {
+      // Just a safety check in case the table was deleted
+    }
 
-    const { error } = await supabase.from('orders').insert({
-      session_id: sessionId,
-      items: cart,
-      status: 'placed',
-      table_id: tableId,
-      restaurant_id: restaurantId,
-      chef_instructions: chefInstructions
+    const { error } = await supabase.rpc('place_order_validated', {
+      p_table_id: tableId,
+      p_session_secret: tableData?.session_secret || 'staff-override',
+      p_items: cart,
+      p_chef_instructions: chefInstructions || null
     });
 
     if (error) {
-      alert("Failed to place order.");
+      alert("Failed to place order: " + error.message);
       console.error(error);
     } else {
       setCart([]);
@@ -228,18 +226,18 @@ export default function WaiterMenu() {
                   </div>
                 )}
 
-                <div className={`relative aspect-square ${isEditMode && !item.is_available ? 'opacity-50 grayscale' : ''}`}>
-                  <ImageFallback src={item.image_url} name={item.name} className="w-full h-full object-cover" />
+                <div className={`relative aspect-square w-full ${isEditMode && !item.is_available ? 'opacity-50 grayscale' : ''}`}>
+                  <ImageFallback src={item.image_url} name={item.name} className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none" draggable="false" />
 
                   {/* Out of stock overlay */}
                   {!item.is_available && !isEditMode && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                       <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
                     </div>
                   )}
 
                   {/* Veg/Non-Veg Indicator */}
-                  <div className="absolute bottom-2 left-2 bg-white/90 p-0.5 rounded shadow-sm">
+                  <div className="absolute bottom-2 left-2 bg-white/90 p-0.5 rounded shadow-sm z-10">
                     <div className={`w-3.5 h-3.5 border flex items-center justify-center ${item.is_veg !== false ? 'border-green-600' : 'border-[#8B4513]'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${item.is_veg !== false ? 'bg-green-600' : 'bg-[#8B4513]'}`}></div>
                     </div>

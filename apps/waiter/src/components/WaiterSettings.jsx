@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { X, Bell, Music } from 'lucide-react';
+import { X, Bell, Music, LogOut } from 'lucide-react';
 import { SOUND_PROFILES, playNotificationSound } from '../utils/soundProfiles';
+import { supabase } from '@tablenet/supabase';
 
 export default function WaiterSettings({ onClose }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundProfile, setSoundProfile] = useState('classic');
+  const [requestSoundProfile, setRequestSoundProfile] = useState('alert');
 
   useEffect(() => {
     const isSoundDisabled = localStorage.getItem('waiter_sound_disabled') === 'true';
     setSoundEnabled(!isSoundDisabled);
     const savedProfile = localStorage.getItem('waiter_sound_profile');
     if (savedProfile) setSoundProfile(savedProfile);
+    const savedRequestProfile = localStorage.getItem('waiter_request_sound_profile');
+    if (savedRequestProfile) setRequestSoundProfile(savedRequestProfile);
   }, []);
 
   const handleToggleSound = () => {
@@ -33,20 +37,20 @@ export default function WaiterSettings({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:fade-in duration-300">
-      <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      
+
       <div className="bg-surface w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[85vh] overflow-hidden">
         <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 sm:hidden"></div>
-        
+
         <div className="flex justify-between items-center p-6 pb-4 border-b border-slate-100 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-theme-text-main">Settings</h2>
             <p className="text-sm font-bold text-slate-400">Waiter Preferences</p>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-3 hover:bg-slate-100 rounded-full transition-colors active:scale-95"
           >
@@ -54,7 +58,7 @@ export default function WaiterSettings({ onClose }) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto pb-12 flex-1">
+        <div className="p-6 overflow-y-auto md:pb-6 pb-12 flex-1">
           <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5">
             <div className="flex justify-between items-center cursor-pointer" onClick={handleToggleSound}>
               <div className="flex gap-4 items-center">
@@ -72,24 +76,60 @@ export default function WaiterSettings({ onClose }) {
                 <div className={`absolute top-1 bg-white w-5 h-5 rounded-full shadow-sm transition-transform ${soundEnabled ? 'left-6' : 'left-1'}`}></div>
               </button>
             </div>
-            
+
             {soundEnabled && (
-              <div className="mt-5 pt-5 border-t border-slate-100 flex justify-between items-center">
-                <div className="flex gap-2 items-center">
-                  <Music size={16} className="text-slate-400" />
-                  <span className="font-bold text-sm text-theme-text-main">Sound</span>
+              <>
+                <div className="mt-5 pt-5 border-t border-slate-100 flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    <Music size={16} className="text-slate-400" />
+                    <span className="font-bold text-sm text-theme-text-main">Order Ready Sound</span>
+                  </div>
+                  <select
+                    value={soundProfile}
+                    onChange={handleProfileChange}
+                    className="bg-theme-bg border border-slate-200 text-theme-text-main text-sm font-bold rounded-xl px-3 py-2 outline-none focus:border-theme-primary cursor-pointer"
+                  >
+                    {SOUND_PROFILES.map(profile => (
+                      <option key={profile.id} value={profile.id}>{profile.name}</option>
+                    ))}
+                  </select>
                 </div>
-                <select 
-                  value={soundProfile}
-                  onChange={handleProfileChange}
-                  className="bg-theme-bg border border-slate-200 text-theme-text-main text-sm font-bold rounded-xl px-3 py-2 outline-none focus:border-theme-primary cursor-pointer"
-                >
-                  {SOUND_PROFILES.map(profile => (
-                    <option key={profile.id} value={profile.id}>{profile.name}</option>
-                  ))}
-                </select>
-              </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    <Bell size={16} className="text-slate-400" />
+                    <span className="font-bold text-sm text-theme-text-main">Waiter Request Sound</span>
+                  </div>
+                  <select
+                    value={requestSoundProfile}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setRequestSoundProfile(val);
+                      localStorage.setItem('waiter_request_sound_profile', val);
+                      playNotificationSound(val);
+                    }}
+                    className="bg-theme-bg border border-slate-200 text-theme-text-main text-sm font-bold rounded-xl px-3 py-2 outline-none focus:border-theme-primary cursor-pointer"
+                  >
+                    {SOUND_PROFILES.map(profile => (
+                      <option key={`req-${profile.id}`} value={profile.id}>{profile.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
+          </div>
+
+          <div className="mt-8 mb-4">
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = '/login';
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-4 px-6 rounded-2xl transition-all shadow-sm active:scale-95 border border-red-100"
+            >
+              <LogOut size={18} />
+              Log Out
+            </button>
           </div>
         </div>
       </div>

@@ -40,10 +40,30 @@ export default {
         pulseLight: {
           '0%, 100%': { opacity: 1 },
           '50%': { opacity: .5 },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        slideDown: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeOut: {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0' },
         }
       },
       animation: {
         pulseLight: 'pulseLight 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        slideUp: 'slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        slideDown: 'slideDown 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        fadeIn: 'fadeIn 0.2s ease-out forwards',
+        fadeOut: 'fadeOut 0.15s ease-out forwards',
       }
     },
   },

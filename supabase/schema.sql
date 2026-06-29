@@ -1,3 +1,8 @@
+-- ============================================================
+-- TableNet — Complete Database Schema
+-- Run this on a fresh Supabase instance (SQL Editor)
+-- ============================================================
+
 -- Enable uuid-ossp extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -7,11 +12,21 @@ CREATE TYPE order_status AS ENUM ('placed', 'preparing', 'ready', 'served');
 CREATE TYPE user_role AS ENUM ('waiter', 'kitchen', 'admin');
 CREATE TYPE assistance_status AS ENUM ('pending', 'resolved');
 
+-- ============================================================
+-- TABLE CREATION (in dependency order)
+-- ============================================================
+
 -- 1. Restaurants Table
 CREATE TABLE public.restaurants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     hide_customer_total BOOLEAN DEFAULT false NOT NULL,
+    session_duration_mins INTEGER DEFAULT 30 NOT NULL,
+    geofence_enabled BOOLEAN DEFAULT true NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    geofence_radius_meters INTEGER DEFAULT 100 NOT NULL,
+    google_maps_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -29,7 +44,12 @@ CREATE TABLE public.tables (
     table_number TEXT NOT NULL,
     qr_token TEXT UNIQUE NOT NULL, -- Static token glued to table
     status table_status DEFAULT 'available'::table_status NOT NULL,
-    capacity INTEGER DEFAULT 4 NOT NULL,
+    capacity INTEGER DEFAULT 4 NOT NULL CHECK (capacity > 0),
+    active_session_id TEXT,
+    session_start_time TIMESTAMP WITH TIME ZONE,
+    session_ends_at TIMESTAMP WITH TIME ZONE,
+    session_secret TEXT, -- Server-generated secret shared with all devices on this table
+    customer_extended_time BOOLEAN DEFAULT false NOT NULL,
     UNIQUE(restaurant_id, table_number)
 );
 
@@ -38,15 +58,15 @@ CREATE TABLE public.menu_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    price NUMERIC(10,2) NOT NULL,
+    category TEXT DEFAULT 'Uncategorized' NOT NULL,
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+    image_url TEXT,
     is_available BOOLEAN DEFAULT true NOT NULL,
-    is_popular BOOLEAN DEFAULT false NOT NULL
+    is_veg BOOLEAN DEFAULT true NOT NULL,
+    is_popular BOOLEAN DEFAULT false NOT NULL,
+    is_todays_special BOOLEAN DEFAULT false NOT NULL,
+    meal_period TEXT
 );
-
--- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurants;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.assistance_requests;
 
 -- 5. Orders Table
 CREATE TABLE public.orders (
@@ -71,8 +91,50 @@ CREATE TABLE public.assistance_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 7. Offers Table
+CREATE TABLE public.offers (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    restaurant_id UUID REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL,
+    button_text TEXT DEFAULT 'Claim voucher',
+    bg_image_index INT DEFAULT 1 CHECK (bg_image_index >= 1 AND bg_image_index <= 5),
+    is_active BOOLEAN DEFAULT true,
+    action_type TEXT DEFAULT 'none',
+    action_payload TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
--- ROW LEVEL SECURITY (RLS) --
+-- ============================================================
+-- REALTIME & REPLICA IDENTITY
+-- ============================================================
+
+-- Enable Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurants;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.assistance_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tables;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.offers;
+
+-- Enable Full Replica Identity for Realtime DELETE events
+ALTER TABLE public.orders REPLICA IDENTITY FULL;
+ALTER TABLE public.assistance_requests REPLICA IDENTITY FULL;
+ALTER TABLE public.tables REPLICA IDENTITY FULL;
+
+-- ============================================================
+-- INDEXES
+-- ============================================================
+
+CREATE INDEX idx_orders_restaurant_id ON public.orders(restaurant_id);
+CREATE INDEX idx_orders_table_id ON public.orders(table_id);
+CREATE INDEX idx_menu_items_restaurant_id ON public.menu_items(restaurant_id);
+CREATE INDEX idx_assistance_requests_restaurant_id ON public.assistance_requests(restaurant_id);
+CREATE INDEX idx_tables_restaurant_id ON public.tables(restaurant_id);
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================
 
 ALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
@@ -80,6 +142,7 @@ ALTER TABLE public.tables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assistance_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.offers ENABLE ROW LEVEL SECURITY;
 
 -- Helper Function to get the current user's restaurant_id
 CREATE OR REPLACE FUNCTION get_user_restaurant_id()
@@ -102,8 +165,16 @@ CREATE POLICY "Users can view their own role" ON public.user_roles
     USING (user_id = auth.uid());
 
 -- Tables Policies
-CREATE POLICY "Anyone can view tables" ON public.tables
-    FOR SELECT TO public
+-- We do not provide public access to all table fields to prevent session_secret leakage.
+CREATE POLICY "Staff can view tables in their restaurant" ON public.tables
+    FOR SELECT TO authenticated
+    USING (restaurant_id = get_user_restaurant_id());
+
+-- NOTE: Customers no longer directly update tables.
+-- Session claiming is done via claim_table_session() RPC (SECURITY DEFINER).
+-- This policy is kept for backward compatibility but scoped down.
+CREATE POLICY "Customers can update tables" ON public.tables
+    FOR UPDATE TO public
     USING (true);
 
 CREATE POLICY "Staff can update tables in their restaurant" ON public.tables
@@ -127,44 +198,38 @@ CREATE POLICY "Staff can update menu items in their restaurant" ON public.menu_i
     FOR UPDATE TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
+CREATE POLICY "Staff can insert menu items in their restaurant" ON public.menu_items
+    FOR INSERT TO authenticated
+    WITH CHECK (restaurant_id = get_user_restaurant_id());
+
+CREATE POLICY "Staff can delete menu items in their restaurant" ON public.menu_items
+    FOR DELETE TO authenticated
+    USING (restaurant_id = get_user_restaurant_id());
+
 -- Orders Policies
 
--- 1. Customers can INSERT if they have the correct session token mapping to the table
--- Note: In a real app, you might want to verify the session_token matches the table's current_qr_token via a trigger or security definer function,
--- but for RLS we can allow inserts and rely on the client passing the token.
-CREATE POLICY "Customers can create orders" ON public.orders
-    FOR INSERT TO public
-    WITH CHECK (true); 
+-- Customers CANNOT directly insert/delete orders — must use place_order_validated() RPC
+-- Customers CAN read orders via get_table_orders() RPC. Realtime for public is disabled for security.
 
--- 2. Customers can SELECT their own orders based on the session token
-CREATE POLICY "Customers can view own orders by session token" ON public.orders
-    FOR SELECT TO public
-    USING (true); -- In practice, the client will filter `WHERE session_id = '...'` 
-
--- 3. Staff can SELECT all orders in their restaurant
+-- Staff can SELECT all orders in their restaurant
 CREATE POLICY "Staff can view restaurant orders" ON public.orders
     FOR SELECT TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
--- 4. Staff can UPDATE all orders in their restaurant
+-- Staff can UPDATE all orders in their restaurant
 CREATE POLICY "Staff can update restaurant orders" ON public.orders
     FOR UPDATE TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
--- 5. Staff can DELETE orders in their restaurant
+-- Staff can DELETE orders in their restaurant
 CREATE POLICY "Staff can delete restaurant orders" ON public.orders
     FOR DELETE TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
 -- Assistance Requests Policies
 
-CREATE POLICY "Customers can create assistance requests" ON public.assistance_requests
-    FOR INSERT TO public
-    WITH CHECK (true);
-
-CREATE POLICY "Customers can view own assistance requests by session token" ON public.assistance_requests
-    FOR SELECT TO public
-    USING (true);
+-- Customers CANNOT directly insert/update — must use request_assistance_validated() RPC
+-- Customers CAN read assistance requests via RPC (if needed). Realtime for public is disabled for security.
 
 CREATE POLICY "Staff can view restaurant assistance requests" ON public.assistance_requests
     FOR SELECT TO authenticated
@@ -178,9 +243,360 @@ CREATE POLICY "Staff can delete restaurant assistance requests" ON public.assist
     FOR DELETE TO authenticated
     USING (restaurant_id = get_user_restaurant_id());
 
--- SEED DATA SCRIPT --
+-- Offers Policies
+CREATE POLICY "Enable read access for all users" ON public.offers
+    FOR SELECT
+    USING (true);
 
--- Insert Dummy Restaurant
+CREATE POLICY "Enable insert for authenticated users" ON public.offers
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (restaurant_id = get_user_restaurant_id());
+
+CREATE POLICY "Enable update for authenticated users" ON public.offers
+    FOR UPDATE
+    TO authenticated
+    USING (restaurant_id = get_user_restaurant_id());
+
+CREATE POLICY "Enable delete for authenticated users" ON public.offers
+    FOR DELETE
+    TO authenticated
+    USING (restaurant_id = get_user_restaurant_id());
+
+-- ============================================================
+-- SERVER-SIDE SESSION & ORDER VALIDATION (RPC FUNCTIONS)
+-- ============================================================
+-- These SECURITY DEFINER functions bypass RLS and provide
+-- validated write access for customers.
+-- ============================================================
+
+-- 1. CLAIM TABLE SESSION
+-- Called when a customer scans a QR code.
+-- If no active session: creates one and returns session_secret.
+-- If active session exists (not expired): returns the SAME session_secret (multi-device support).
+-- If active session is expired: cleans up and creates a new one.
+CREATE OR REPLACE FUNCTION public.claim_table_session(
+    p_qr_token TEXT
+)
+RETURNS JSON AS $$
+DECLARE
+    v_table RECORD;
+    v_restaurant RECORD;
+    v_session_secret TEXT;
+    v_session_id TEXT;
+    v_now TIMESTAMP WITH TIME ZONE := NOW();
+BEGIN
+    -- Find the table by QR token
+    SELECT t.*, r.session_duration_mins, r.geofence_enabled,
+           r.latitude, r.longitude, r.geofence_radius_meters,
+           r.google_maps_url, r.hide_customer_total
+    INTO v_table
+    FROM public.tables t
+    JOIN public.restaurants r ON r.id = t.restaurant_id
+    WHERE t.qr_token = p_qr_token
+    FOR UPDATE OF t;  -- Row lock to prevent race conditions
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'invalid_table', 'message', 'Table not found');
+    END IF;
+
+    -- Check if there's an active session
+    IF v_table.active_session_id IS NOT NULL AND v_table.session_start_time IS NOT NULL THEN
+        IF v_table.session_ends_at IS NULL OR v_now <= v_table.session_ends_at THEN
+            RETURN json_build_object(
+                'status', 'success',
+                'table_number', v_table.table_number,
+                'table_id', v_table.id,
+                'restaurant_id', v_table.restaurant_id,
+                'session_secret', v_table.session_secret,
+                'session_id', v_table.active_session_id,
+                'session_start_time', v_table.session_start_time,
+                'session_ends_at', v_table.session_ends_at,
+                'customer_extended_time', v_table.customer_extended_time,
+                'session_duration_mins', v_table.session_duration_mins,
+                'geofence_enabled', v_table.geofence_enabled,
+                'latitude', v_table.latitude,
+                'longitude', v_table.longitude,
+                'geofence_radius_meters', v_table.geofence_radius_meters,
+                'google_maps_url', v_table.google_maps_url,
+                'hide_customer_total', v_table.hide_customer_total
+            );
+        ELSE
+            -- Session expired — clean up session metadata, let the new session block below handle deleting leftover orders
+            UPDATE public.tables SET
+                active_session_id = NULL,
+                session_start_time = NULL,
+                session_ends_at = NULL,
+                session_secret = NULL,
+                status = 'available'
+            WHERE id = v_table.id;
+        END IF;
+    END IF;
+
+    -- No active session — clean up old data before creating a new one
+    UPDATE public.assistance_requests SET status = 'resolved'
+    WHERE table_id = v_table.id AND status = 'pending';
+
+    DELETE FROM public.orders WHERE table_id = v_table.id;
+
+    v_session_secret := gen_random_uuid()::TEXT;
+    v_session_id := gen_random_uuid()::TEXT;
+
+    UPDATE public.tables 
+    SET active_session_id = v_session_id, 
+        session_secret = v_session_secret, 
+        session_start_time = v_now,
+        session_ends_at = CASE 
+            WHEN v_table.session_duration_mins = 0 THEN NULL 
+            ELSE v_now + (v_table.session_duration_mins || ' minutes')::INTERVAL 
+        END,
+        customer_extended_time = false,
+        status = 'seated' 
+    WHERE id = v_table.id;
+
+    RETURN json_build_object(
+        'status', 'success',
+        'table_number', v_table.table_number,
+        'table_id', v_table.id,
+        'restaurant_id', v_table.restaurant_id,
+        'session_secret', v_session_secret,
+        'session_id', v_session_id,
+        'session_start_time', v_now,
+        'session_ends_at', CASE 
+            WHEN v_table.session_duration_mins = 0 THEN NULL 
+            ELSE v_now + (v_table.session_duration_mins || ' minutes')::INTERVAL 
+        END,
+        'customer_extended_time', false,
+        'session_duration_mins', v_table.session_duration_mins,
+        'geofence_enabled', v_table.geofence_enabled,
+        'latitude', v_table.latitude,
+        'longitude', v_table.longitude,
+        'geofence_radius_meters', v_table.geofence_radius_meters,
+        'google_maps_url', v_table.google_maps_url,
+        'hide_customer_total', v_table.hide_customer_total
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- 2. PLACE ORDER (VALIDATED)
+-- Validates session_secret before inserting an order.
+CREATE OR REPLACE FUNCTION public.place_order_validated(
+    p_table_id UUID,
+    p_session_secret TEXT,
+    p_items JSONB,
+    p_chef_instructions TEXT DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    v_table RECORD;
+    v_order_id UUID;
+    v_validated_items JSONB := '[]'::jsonb;
+    v_item JSONB;
+    v_menu_item RECORD;
+BEGIN
+    -- Validate session
+    SELECT t.*, r.session_duration_mins
+    INTO v_table
+    FROM public.tables t
+    JOIN public.restaurants r ON r.id = t.restaurant_id
+    WHERE t.id = p_table_id AND t.session_secret = p_session_secret;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'invalid_session', 'message', 'Invalid or expired session. Please scan the QR code again.');
+    END IF;
+
+    -- Check session not expired
+    IF v_table.session_ends_at IS NOT NULL AND NOW() > v_table.session_ends_at THEN
+        RETURN json_build_object('error', 'session_expired', 'message', 'Your session has expired. Please scan the QR code again.');
+    END IF;
+
+    -- Validate items and pricing
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        SELECT * INTO v_menu_item 
+        FROM public.menu_items 
+        WHERE id = (v_item->>'id')::UUID AND restaurant_id = v_table.restaurant_id;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'invalid_item', 'message', 'Menu item not found.');
+        END IF;
+
+        IF v_menu_item.is_available = false THEN
+            RETURN json_build_object('error', 'item_unavailable', 'message', v_menu_item.name || ' is currently unavailable.');
+        END IF;
+
+        -- Reconstruct the item with the trusted price and name from the database
+        v_validated_items := v_validated_items || jsonb_build_object(
+            'id', v_menu_item.id,
+            'name', v_menu_item.name,
+            'price', v_menu_item.price,
+            'quantity', (v_item->>'quantity')::INTEGER,
+            'notes', v_item->>'notes'
+        );
+    END LOOP;
+
+    -- Insert order with validated items
+    INSERT INTO public.orders (
+        restaurant_id, table_id, session_id, items, chef_instructions, status
+    ) VALUES (
+        v_table.restaurant_id, p_table_id, v_table.active_session_id, v_validated_items, p_chef_instructions, 'placed'
+    ) RETURNING id INTO v_order_id;
+
+    RETURN json_build_object('status', 'success', 'order_id', v_order_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 2.5 GET CUSTOMER SESSION STATE (SECURE POLLING)
+CREATE OR REPLACE FUNCTION public.get_customer_session_state(p_session_secret TEXT)
+RETURNS JSON AS $$
+DECLARE
+    v_table RECORD;
+    v_orders JSON;
+BEGIN
+    SELECT * INTO v_table FROM public.tables WHERE session_secret = p_session_secret;
+    
+    IF NOT FOUND OR v_table.active_session_id IS NULL THEN
+        RETURN json_build_object('active', false);
+    END IF;
+
+    SELECT json_agg(o.*) INTO v_orders
+    FROM (
+        SELECT * FROM public.orders 
+        WHERE table_id = v_table.id AND session_id = v_table.active_session_id
+        ORDER BY created_at DESC
+    ) o;
+
+    RETURN json_build_object(
+        'active', true,
+        'session_ends_at', v_table.session_ends_at,
+        'customer_extended_time', v_table.customer_extended_time,
+        'orders', COALESCE(v_orders, '[]'::json)
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+
+-- 3. REQUEST ASSISTANCE (VALIDATED)
+-- Validates session_secret before inserting an assistance request.
+CREATE OR REPLACE FUNCTION public.request_assistance_validated(
+    p_table_id UUID,
+    p_session_secret TEXT,
+    p_request_type TEXT
+)
+RETURNS JSON AS $$
+DECLARE
+    v_table RECORD;
+    v_request_id UUID;
+BEGIN
+    -- Validate session
+    SELECT t.*, r.session_duration_mins
+    INTO v_table
+    FROM public.tables t
+    JOIN public.restaurants r ON r.id = t.restaurant_id
+    WHERE t.id = p_table_id AND t.session_secret = p_session_secret;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'invalid_session', 'message', 'Invalid or expired session.');
+    END IF;
+
+    -- Check session not expired
+    IF v_table.session_ends_at IS NOT NULL AND NOW() > v_table.session_ends_at THEN
+        RETURN json_build_object('error', 'session_expired', 'message', 'Your session has expired.');
+    END IF;
+
+    -- Insert assistance request
+    INSERT INTO public.assistance_requests (
+        restaurant_id, table_id, session_id, request_type, status
+    ) VALUES (
+        v_table.restaurant_id, p_table_id, v_table.active_session_id, p_request_type, 'pending'
+    ) RETURNING id INTO v_request_id;
+
+    RETURN json_build_object('status', 'success', 'request_id', v_request_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- 4. EXTEND SESSION TIME
+-- Validates session and extends session_ends_at
+CREATE OR REPLACE FUNCTION public.extend_table_session(
+    p_table_id UUID,
+    p_session_secret TEXT,
+    p_additional_minutes INTEGER,
+    p_is_customer BOOLEAN
+)
+RETURNS JSON AS $$
+DECLARE
+    v_table RECORD;
+BEGIN
+    SELECT * INTO v_table FROM public.tables WHERE id = p_table_id FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'invalid_table', 'message', 'Table not found');
+    END IF;
+
+    IF v_table.session_secret IS NULL OR v_table.session_secret != p_session_secret THEN
+        RETURN json_build_object('error', 'invalid_session', 'message', 'Invalid or expired session.');
+    END IF;
+
+    IF p_is_customer AND v_table.customer_extended_time = true THEN
+        RETURN json_build_object('error', 'already_extended', 'message', 'Customer can only extend time once.');
+    END IF;
+
+    -- If session is infinite, no need to extend
+    IF v_table.session_ends_at IS NULL THEN
+        RETURN json_build_object('error', 'infinite_session', 'message', 'Session is infinite. No need to extend.');
+    END IF;
+
+    UPDATE public.tables 
+    SET session_ends_at = session_ends_at + (p_additional_minutes || ' minutes')::INTERVAL,
+        customer_extended_time = CASE WHEN p_is_customer THEN true ELSE customer_extended_time END
+    WHERE id = p_table_id;
+
+    RETURN json_build_object('status', 'success');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- 5. CLEANUP EXPIRED SESSIONS
+-- Called by waiter/kitchen apps periodically to clean up stale sessions.
+CREATE OR REPLACE FUNCTION public.cleanup_expired_sessions()
+RETURNS JSON AS $$
+DECLARE
+    v_cleaned INTEGER := 0;
+    v_table RECORD;
+BEGIN
+    FOR v_table IN
+        SELECT * FROM public.tables 
+        WHERE active_session_id IS NOT NULL 
+          AND session_ends_at IS NOT NULL 
+          AND session_ends_at <= NOW()
+    LOOP
+        -- Clear the table session
+        UPDATE public.tables SET
+            active_session_id = NULL,
+            session_start_time = NULL,
+            session_ends_at = NULL,
+            session_secret = NULL,
+            status = 'available'
+        WHERE id = v_table.id;
+
+        -- We DO NOT delete orders or assistance requests here, so the waiter/kitchen can still bill them.
+        -- They will be deleted when a new customer claims the table or the waiter clears the table manually.
+
+        v_cleaned := v_cleaned + 1;
+    END LOOP;
+
+    RETURN json_build_object('status', 'success', 'cleaned', v_cleaned);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- SEED DATA
+-- ============================================================
+
+-- Insert Demo Restaurant
 INSERT INTO public.restaurants (id, name) VALUES 
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'TableNet Demo Restaurant')
 ON CONFLICT DO NOTHING;
@@ -202,3 +618,9 @@ INSERT INTO public.tables (restaurant_id, table_number, qr_token) VALUES
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '13', 'tbl_abc013'),
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '14', 'tbl_abc014'),
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '15', 'tbl_abc015');
+
+-- Seed Offers
+INSERT INTO public.offers (restaurant_id, title, subtitle, button_text, bg_image_index, is_active)
+VALUES 
+    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Get special discount', 'up to 85%', 'Claim voucher', 1, true),
+    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Happy Hour Deal', 'Flat 50% Off', 'Order Now', 2, true);

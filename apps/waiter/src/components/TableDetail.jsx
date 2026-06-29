@@ -1,8 +1,9 @@
-import { ChevronLeft, Check, Trash2, Plus, Receipt, ArrowRightLeft, X } from 'lucide-react';
+import { ChevronLeft, Check, Trash2, Plus, Receipt, ArrowRightLeft, X, Clock, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@tablenet/supabase';
 import { useNavigate } from 'react-router-dom';
 import SlideToConfirm from './SlideToConfirm';
+import ExtendSessionModal from './ExtendSessionModal';
 
 export default function TableDetail({ table, onBack, waiterId }) {
   const [orders, setOrders] = useState(() => {
@@ -19,6 +20,9 @@ export default function TableDetail({ table, onBack, waiterId }) {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isClosingTransfer, setIsClosingTransfer] = useState(false);
   const [availableTables, setAvailableTables] = useState([]);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [isClosingExtend, setIsClosingExtend] = useState(false);
+  const [extendingSession, setExtendingSession] = useState(false);
 
   const navigate = useNavigate();
 
@@ -35,7 +39,15 @@ export default function TableDetail({ table, onBack, waiterId }) {
     setTimeout(() => {
       setIsClosingTransfer(false);
       setIsTransferModalOpen(false);
-    }, 300);
+    }, 200);
+  };
+
+  const handleCloseExtend = () => {
+    setIsClosingExtend(true);
+    setTimeout(() => {
+      setIsClosingExtend(false);
+      setShowExtendModal(false);
+    }, 200);
   };
 
   useEffect(() => {
@@ -118,7 +130,12 @@ export default function TableDetail({ table, onBack, waiterId }) {
     sessionStorage.removeItem(`cart_${table.id}`);
     sessionStorage.removeItem(`instructions_${table.id}`);
 
-    await supabase.from('tables').update({ status: 'available' }).eq('id', table.id);
+    await supabase.from('tables').update({
+      status: 'available',
+      active_session_id: null,
+      session_start_time: null,
+      session_secret: null
+    }).eq('id', table.id);
 
     onBack();
   };
@@ -144,6 +161,27 @@ export default function TableDetail({ table, onBack, waiterId }) {
     onBack();
   };
 
+  const handleExtendSession = async (minutes) => {
+    setExtendingSession(true);
+    try {
+      const { error, data } = await supabase.rpc('extend_table_session', {
+        p_table_id: table.id,
+        p_session_secret: table.session_secret,
+        p_additional_minutes: minutes,
+        p_is_customer: false
+      });
+      if (error || data?.error) {
+        alert(data?.message || error?.message || 'Failed to extend session');
+      } else {
+        handleCloseExtend();
+      }
+    } catch (err) {
+      alert('An error occurred while extending the session.');
+    } finally {
+      setExtendingSession(false);
+    }
+  };
+
   const calculateTotals = () => {
     let subtotal = 0;
     orders.forEach(o => {
@@ -160,16 +198,37 @@ export default function TableDetail({ table, onBack, waiterId }) {
   return (
     <div className="flex flex-col h-[100dvh] bg-theme-bg max-w-md mx-auto relative overflow-hidden">
       <header className="px-4 py-4 flex items-center justify-between bg-theme-bg/90 sticky top-0 z-10 border-b border-slate-200/50">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-3 bg-white shadow-sm border border-slate-100 rounded-full active:scale-95 transition-transform text-theme-text-main">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <button onClick={onBack} className="p-3 bg-white shadow-sm border border-slate-100 rounded-full active:scale-95 transition-transform text-theme-text-main shrink-0">
             <ChevronLeft size={20} />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-theme-text-main">Table {table.number}</h1>
-            <p className="text-sm text-theme-text-sec font-medium capitalize">{table.status} • {table.capacity} Guests</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-theme-text-main flex items-center gap-2">
+              <span className="whitespace-nowrap">Table {table.number}</span>
+              {table.remainingMins !== null && (
+                <button
+                  onClick={() => setShowExtendModal(true)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 active:scale-95 transition-transform whitespace-nowrap ${table.remainingMins <= 5
+                    ? 'bg-red-50 text-red-600 border border-red-200'
+                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}
+                >
+                  {table.remainingMins}m
+                </button>
+              )}
+            </h1>
+            <p className="text-xs text-theme-text-sec font-medium capitalize mt-0.5 truncate">
+              {table.status} • {table.capacity} Guests
+              {/* {table.session_start_time && ` • Seated at ${new Date(table.session_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} */}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          {table.remainingMins !== null && (
+            <button onClick={() => setShowExtendModal(true)} className="p-3 bg-amber-50 text-amber-600 rounded-full active:scale-95 transition-transform" title="Extend Time">
+              <Clock size={20} />
+            </button>
+          )}
           <button onClick={handleOpenTransfer} className="p-3 bg-blue-50 text-blue-600 rounded-full active:scale-95 transition-transform" title="Transfer Table">
             <ArrowRightLeft size={20} />
           </button>
@@ -218,18 +277,15 @@ export default function TableDetail({ table, onBack, waiterId }) {
           <div key={order.id} className="card p-5 flex flex-col gap-3">
             <div className="flex items-start justify-between">
               <div className="flex-1 mr-4">
+                <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">
+                  Order #{order.id.substring(0, 6)}<span className="mx-1 font-normal">\</span><span className="text-theme-primary capitalize font-bold">{order.status}</span>
+                </div>
                 <h3 className="font-bold text-sm leading-tight text-theme-text-main">
                   {order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ')}
                 </h3>
                 {order.chef_instructions && (
                   <p className="text-xs text-theme-primary font-bold mt-1.5 italic">Note: {order.chef_instructions}</p>
                 )}
-                <p className={`text-xs font-bold mt-1.5 capitalize ${order.status === 'ready' ? 'text-theme-accent' :
-                  order.status === 'preparing' ? 'text-amber-600' :
-                    order.status === 'served' ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                  {order.status}
-                </p>
               </div>
 
               {order.status === 'ready' && (
@@ -325,9 +381,9 @@ export default function TableDetail({ table, onBack, waiterId }) {
 
       {/* Transfer Modal */}
       {(isTransferModalOpen || isClosingTransfer) && (
-        <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] flex flex-col justify-end pointer-events-none">
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end pointer-events-none">
           <div className={`absolute inset-0 bg-black/40 pointer-events-auto ${isClosingTransfer ? 'animate-fadeOut' : 'animate-fadeIn'}`} onClick={handleCloseTransfer}></div>
-          <div className={`bg-white w-full rounded-t-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh] relative z-10 pointer-events-auto ${isClosingTransfer ? 'animate-slideDown' : 'animate-slideUp'}`}>
+          <div className={`bg-white w-full max-w-md mx-auto rounded-t-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh] relative z-10 pointer-events-auto ${isClosingTransfer ? 'animate-slideDown' : 'animate-slideUp'}`}>
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-xl font-black text-theme-text-main flex items-center gap-2">
                 <ArrowRightLeft size={24} className="text-blue-500" />
@@ -363,6 +419,16 @@ export default function TableDetail({ table, onBack, waiterId }) {
           </div>
         </div>
       )}
+
+      {/* Extend Session Modal */}
+      <ExtendSessionModal
+        isOpen={showExtendModal}
+        isClosing={isClosingExtend}
+        onClose={handleCloseExtend}
+        onExtend={handleExtendSession}
+        extendingSession={extendingSession}
+        tableNumber={table.number}
+      />
     </div>
   );
 }
