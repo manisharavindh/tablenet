@@ -6,7 +6,7 @@ import { supabase } from '@tablenet/supabase';
 const mockTables = Array.from({ length: 15 }, (_, i) => ({
   id: i + 1,
   table_number: `${i + 1}`,
-  qr_token: `tbl_abc${(i + 1).toString().padStart(3, '0')}`,
+  qr_token: `mock_${(i + 1).toString().padStart(3, '0')}`,
   capacity: 4
 }));
 
@@ -181,7 +181,7 @@ export default function TableManager({ onCountUpdate }) {
 
   return (
     <div className="w-full transition-colors duration-300">
-      {/* --- uncomment this for the table resizing feature ---
+      {/* --- uncomment this for the table resizing feature --- */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-surface p-4 rounded-3xl border border-theme-border shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-theme-text-main">Table Inventory</h2>
@@ -207,7 +207,7 @@ export default function TableManager({ onCountUpdate }) {
             </button>
           </div>
         </div>
-      </div> */}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {isLoading ? (

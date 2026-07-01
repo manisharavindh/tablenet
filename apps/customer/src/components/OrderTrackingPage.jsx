@@ -55,7 +55,7 @@ export default function OrderTrackingPage({ orders, onClose, restaurantId, hideT
                   </div>
                   <ArrowRight size={12} className="text-slate-300" />
                   <div className={`font-bold text-[12px] uppercase tracking-wider ${['preparing', 'ready', 'served'].includes(order.status) ? 'text-theme-primary' : 'text-slate-400'}`}>
-                    Preparing
+                    {order.status === 'served' ? 'Served' : order.status === 'ready' ? 'Ready' : 'Preparing'}
                   </div>
                 </div>
               </div>

@@ -43,8 +43,8 @@ export default function Login() {
       {/* Left Side - Login Form */}
       <div className="flex-1 w-full md:w-[45%] lg:w-[40%] flex flex-col items-center justify-center p-8 md:p-12 lg:p-16 shadow-[10px_0_30px_rgba(0,0,0,0.03)] z-10 bg-surface">
         <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center md:items-start text-center md:text-left mb-10">
-            <Logo className="w-56 h-auto drop-shadow-md" />
+          <div className="flex flex-col items-center md:items-start text-center md:text-left mb-4">
+            <Logo className="w-56 h-auto" color="#1C1C1C" />
             {/* <h1 className="text-2xl font-black text-theme-text-main tracking-tight">Staff Portal</h1>
             <p className="text-theme-text-sec text-sm mt-2 font-medium">Please sign in to access the kitchen management dashboard.</p> */}
           </div>
@@ -109,7 +109,7 @@ export default function Login() {
 
       <div className="hidden md:block md:w-[55%] lg:w-[60%] relative bg-slate-200 dark:bg-slate-800 overflow-hidden">
         <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3769.2297802872404!2d77.43714847480302!3d8.708043691341048!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b043947d4c59bfd%3A0x8f115ffabb5421b1!2sTaj%20Tamira%20Restaurant!5e1!3m2!1sen!2sin!4v1782534982053!5m2!1sen!2sin"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d119776.02696206729!2d76.8777727446996!3d11.009912541855602!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba859af2f971cb5%3A0x2fc1c81e183ed282!2sCoimbatore%2C%20Tamil%20Nadu!5e1!3m2!1sen!2sin!4v1782911169770!5m2!1sen!2sin"
           width="100%"
           height="100%"
           style={{ border: 0 }}

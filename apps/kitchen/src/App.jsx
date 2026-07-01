@@ -124,7 +124,7 @@ function KitchenView() {
     <div className="h-[100dvh] overflow-hidden font-sans flex flex-col transition-colors duration-300">
       <header className="hidden md:flex bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 px-8 py-4 justify-between items-center z-20 sticky top-0 shadow-sm transition-all duration-300">
         <div className="flex items-center gap-6">
-          <Logo className="h-14 md:h-16 w-auto" />
+          <Logo className="h-12 md:h-16 w-auto" color='#262626' />
           {/* <KitchenClock /> */}
         </div>
 

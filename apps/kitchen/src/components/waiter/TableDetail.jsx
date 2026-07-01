@@ -241,7 +241,7 @@ export default function TableDetail({ table, onBack, waiterId }) {
                   </div>
                   <ArrowRight size={12} className="text-slate-200" />
                   <div className={`font-bold text-[9px] uppercase tracking-wider ${['preparing', 'ready', 'served'].includes(order.status) ? 'text-theme-primary' : 'text-slate-400'}`}>
-                    Preparing
+                    {order.status === 'served' ? 'Served' : order.status === 'ready' ? 'Ready' : 'Preparing'}
                   </div>
                 </div>
               </div>

@@ -6,6 +6,13 @@ import ImageFallback from './ImageFallback';
 export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuantity, searchQuery, setSearchQuery, activeCategory, setActiveCategory, categories, isReadOnly }) {
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dietaryFilter, setDietaryFilter] = useState('All');
+  const [showFilterHint, setShowFilterHint] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFilterHint(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -38,6 +45,12 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
   const displayedMenu = menu.filter(item => {
     const matchesCategory = activeCategory === 'All' || (item.category || 'Uncategorized') === activeCategory;
     
+    const matchesDietary = dietaryFilter === 'All' || 
+                           (dietaryFilter === 'Veg' && item.is_veg !== false) || 
+                           (dietaryFilter === 'Non-Veg' && item.is_veg === false);
+
+    if (!matchesDietary) return false;
+
     if (!searchQuery) return matchesCategory;
 
     const lowerQuery = searchQuery.toLowerCase();
@@ -79,17 +92,31 @@ export default function MenuPage({ onAddToCart, restaurantId, cart, updateQuanti
               placeholder="Search menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
-              className="w-full bg-theme-surface border border-slate-200 rounded-xl py-3 pl-10 pr-10 outline-none focus:border-theme-primary shadow-sm transition-colors text-sm"
+              className="w-full bg-theme-surface border border-slate-200 rounded-xl py-3 pl-10 pr-[90px] outline-none focus:border-theme-primary shadow-sm transition-colors text-sm"
             />
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-text-sec" />
-            {searchQuery && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery && setSearchQuery('')}
+                  className="text-theme-text-sec hover:text-theme-text-main p-1"
+                >
+                  <X size={16} />
+                </button>
+              )}
               <button
-                onClick={() => setSearchQuery && setSearchQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-text-sec hover:text-theme-text-main p-1"
+                onClick={() => setDietaryFilter(prev => prev === 'All' ? 'Veg' : prev === 'Veg' ? 'Non-Veg' : 'All')}
+                className="group relative bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded text-[10px] font-bold flex items-center justify-center min-w-[50px] gap-1 transition-colors text-theme-text-main uppercase"
               >
-                <X size={16} />
+                {dietaryFilter === 'Veg' && <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>}
+                {dietaryFilter === 'Non-Veg' && <div className="w-1.5 h-1.5 rounded-full bg-[#8B4513]"></div>}
+                {dietaryFilter}
+                <div className={`absolute top-full right-0 mt-3 px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-md transition-all duration-500 shadow-xl whitespace-nowrap z-[100] pointer-events-none normal-case tracking-normal ${showFilterHint ? 'opacity-100 visible' : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'}`}>
+                  Change to {dietaryFilter === 'All' ? 'Veg' : dietaryFilter === 'Veg' ? 'Non-Veg' : 'All'}
+                  <div className="absolute -top-1.5 right-4 border-4 border-transparent border-b-slate-800"></div>
+                </div>
               </button>
-            )}
+            </div>
           </div>
         )}
 

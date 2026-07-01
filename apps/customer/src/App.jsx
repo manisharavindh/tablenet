@@ -643,10 +643,21 @@ function CustomerView() {
   };
 
   return (
-    <div className={`relative font-sans bg-theme-bg animate-in fade-in duration-500 ${isOverlayActive ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh] pb-24'}`}>
+    <div className={`relative font-sans bg-theme-bg ${isOverlayActive ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh] pb-24'}`}>
       {(loading || dataLoading) && !isSessionExpired && (
         <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[999] bg-theme-bg flex flex-col items-center justify-center font-sans h-[100dvh]">
-          <Logo className="w-80 max-w-[85vw] h-auto mb-8 drop-shadow-xl animate-pulse" />
+          <Logo className="w-80 max-w-[85vw] h-auto" />
+          <style>{`
+            @keyframes dotPulse {
+              0%, 100% { transform: scale(1); opacity: 0.4; }
+              50% { transform: scale(1.4); opacity: 1; }
+            }
+          `}</style>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="w-2 h-2 bg-[#E23744] rounded-full" style={{ animation: 'dotPulse 1.2s ease-in-out infinite', animationDelay: '0ms' }}></span>
+            <span className="w-2 h-2 bg-[#E23744] rounded-full" style={{ animation: 'dotPulse 1.2s ease-in-out infinite', animationDelay: '200ms' }}></span>
+            <span className="w-2 h-2 bg-[#E23744] rounded-full" style={{ animation: 'dotPulse 1.2s ease-in-out infinite', animationDelay: '400ms' }}></span>
+          </div>
         </div>
       )}
 
@@ -659,7 +670,7 @@ function CustomerView() {
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-slate-500/5 rounded-t-full blur-3xl pointer-events-none"></div>
 
           <div className="w-full max-w-[280px] mx-auto flex flex-col items-center relative z-20">
-            <Logo className="w-64 max-w-[80vw] h-auto mb-8 drop-shadow-md" />
+            <Logo className="w-64 max-w-[80vw] h-auto mb-8" />
 
             <h2 className="text-[28px] font-black text-theme-text-main tracking-tight mb-3">Hope you enjoyed!</h2>
             <p className="text-theme-text-sec text-[15px] font-medium leading-relaxed mb-10">

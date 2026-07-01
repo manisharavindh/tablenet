@@ -603,21 +603,21 @@ ON CONFLICT DO NOTHING;
 
 -- Insert 15 Static Tables
 INSERT INTO public.tables (restaurant_id, table_number, qr_token) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '1', 'tbl_abc001'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '2', 'tbl_abc002'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '3', 'tbl_abc003'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '4', 'tbl_abc004'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '5', 'tbl_abc005'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '6', 'tbl_abc006'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '7', 'tbl_abc007'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '8', 'tbl_abc008'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '9', 'tbl_abc009'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '10', 'tbl_abc010'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11', 'tbl_abc011'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '12', 'tbl_abc012'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '13', 'tbl_abc013'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '14', 'tbl_abc014'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '15', 'tbl_abc015');
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '1', '204aee6226315536c4dcc16f0d308b23'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '2', 'f4c541cacc747635a0b43f630238f6e8'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '3', 'bcf4ef9a5876117c2d8827193a1435bf'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '4', '9a99d86c47d6e0018df7592aefae8859'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '5', 'e0762203e59df1d15f393dc44da42ef6'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '6', '5187933da6d0573233d4f513e7077b90'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '7', '96a52699d0dea3ba4bd1f82dad32f661'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '8', '787179792c0db6642e4e31c5782ac268'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '9', 'fe13c8949a35b99922d2fef3a750ccda'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '10', '225a849ab62c0872eb967f2bea3dfebd'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11', '264e735c2381c1f4968c8b058eb83ae7'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '12', 'ffed69ae650fe5ad72c7dfe397a9be0e'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '13', '3baa00b293bedc32ed9e549f480410f6'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '14', '7e71fb5b498887a1c9dd20852080cc20'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '15', '34c6bb346237157403d5adbf549d49a6');
 
 -- Seed Offers
 INSERT INTO public.offers (restaurant_id, title, subtitle, button_text, bg_image_index, is_active)

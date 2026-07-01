@@ -41,11 +41,11 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-surface">
       {/* Login Form Container */}
-      <div className="w-full p-8 md:p-12 z-10">
+      <div className="w-full p-8 md:p-12 z-10 flex justify-center">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center text-center mb-6">
-            <Logo className="w-56 h-auto drop-shadow-md mb-6" />
-            <h1 className="text-3xl font-black text-theme-text-main tracking-tight">Waiter Portal</h1>
+            <Logo className="w-56 h-auto mb-2" color="#1C1C1C" />
+            {/* <h1 c </div>lassName="text-3xl font-black text-theme-text-main tracking-tight">Waiter Portal</h1> */}
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
